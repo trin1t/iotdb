@@ -19,42 +19,43 @@
 
 -->
 
-# Time Series Forecast
+# 时间序列预测
 ## Decompose
 
 ## STL
-### Usage
 
-The function decomposes input time series to the addition of trending, seasonal, and residual series with STL algorithm.
+### 函数简介
 
-**Name:** STL
+本函数使用STL方法将输入时间序列分解为趋势项、季节项、残差项之和。
 
-**Input Series:** Only support a single input series. The data type is TEXT.
+**函数名：** STL
 
-**Parameter:**
+**输入序列：** 仅支持单个输入序列，类型为 DOUBLE。
 
-+ `period`: Period length of input time series, which should be an integer larger than 1. Counted by number of points.
-+ `swindow`: The span (in lags) of the loess window for seasonal extraction, which should be odd and at least 7. Or leave it default for periodic regression.
-+ `sdegree`: Degree of locally-fitted polynomial in seasonal extraction. Should be 0 or 1. Default is 0.
-+ `sjump`: Integer at least one to increase speed of the seasonal smoother. Linear interpolation happens between every `sjump`th value. Default is `ceil(swindow/10)`.
-+ `twindow`: The span (in lags) of the loess window for trend extraction, which should be odd. Default is `nextodd(ceil((1.5*period) / (1-(1.5/swindow))))`.
-+ `tdegree`: Degree of locally-fitted polynomial in trend extraction. Should be 0 or 1. Default is 1.
-+ `tjump`: Integer at least one to increase speed of the trend smoother. Linear interpolation happens between every `tjump`th value. Default is `ceil(twindow/10)`.
-+ `lwindow`: The span (in lags) of the loess window of the low-pass filter used for each subseries. Default is the smallest odd integer greater than or equal to `period`.
-+ `ldegree`: Degree of locally-fitted polynomial for the subseries low-pass filter, which should be 0 or 1. Default is equal to `tdegree`.
-+ `ljump`: Integer at least one to increase speed of the low-pass filter smoother. Linear interpolation happens between every `ljump`th value. Default is `ceil(lwindow/10)`.
-+ `robust`: Boolean indicating if robust fitting be used in the loess procedure. Default is false.
-+ `output`: Series indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
+**参数：**
 
-**Output Series:** Output a single series. The type is DOUBLE.
++ `period`: 输入序列的周期长度，应当为大于 1 的整数。按数据点的个数计。
++ `swindow`: 季节项提取时的 LOESS 窗口长度（含滞后项），应当为奇数且大于等于 7. 缺省时使用周期回归。
++ `sdegree`: 季节项提取时局部拟合的多项式次数。应当为 0 或 1. 默认为 0.
++ `sjump`: 大于等于 1 的整数，用于提升季节平滑的计算速度。每隔`sjump`个点进行线性插值。默认值为 `ceil(swindow/10)`.
++ `twindow`: 趋势项提取时的 LOESS 窗口长度（含滞后项），应当为奇数。默认值为 `nextodd(ceil((1.5*period) / (1-(1.5/swindow))))`.
++ `tdegree`: 趋势项提取时局部拟合的多项式次数。应当为 0 或 1. 默认为 1.
++ `tjump`:  大于等于 1 的整数，用于提升趋势平滑的计算速度。每隔`tjump`个点进行线性插值。默认值为`ceil(twindow/10)`.
++ `lwindow`: 对每个子序列进行低通滤波时的 LOESS 窗口长度（含滞后项）。默认为不小于`period`的最小奇数.
++ `ldegree`: 子序列低通滤波时局部拟合的多项式次数。应当为 0 或 1. 默认等于`tdegree`.
++ `ljump`: 大于等于 1 的整数，用于提升低通滤波平滑的计算速度。每隔`ljump`个点进行线性插值。默认值为 `ceil(lwindow/10)`.
++ `robust`: 布尔值，指示是否在 LOESS 过程中使用鲁棒拟合。默认为 false.
++ `output`: 指示输出序列。可以取 "trend", "seasonal" 或 "residual". 默认值为 "trend".
 
-**Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+**输出序列：** 输出单个序列，类型为 DOUBLE。
 
-### Examples
+**提示：** 函数忽略输入序列中的 NaN. 认为数据点是等间隔的。用户可以先进行重采样再进行分解。
 
-#### Decomposition with given period
+### 使用示例
 
-Input series:
+#### 指定周期长度分解
+
+输入序列：
 
 ```
 +-----------------------------+---------------+
@@ -71,13 +72,13 @@ Input series:
 Total line number = 708
 ```
 
-SQL for query:
+用于查询的 SQL 语句：
 
 ```sql
 select stl(s1, 'period' = '12', 'swindow' = '35', 'output' = 'trend') from root.test.d1
 ```
 
-Output series:
+输出序列：
 
 ```
 +-----------------------------+---------------------------------------------------------------------+
@@ -93,13 +94,14 @@ Output series:
 ...
 Total line number = 708
 ```
-SQL for query:
+
+用于查询的 SQL 语句：
 
 ```sql
 select stl(s1, 'period' = '12', 'swindow' = '35', 'output' = 'residual') from root.test.d1
 ```
 
-Output series:
+输出序列：
 
 ```
 +-----------------------------+------------------------------------------------------------------------+

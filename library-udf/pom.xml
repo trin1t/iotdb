@@ -83,6 +83,12 @@
             <artifactId>JTransforms</artifactId>
             <version>3.1</version>
         </dependency>
+        <!-- STL -->
+        <dependency>
+            <groupId>com.github.servicenow.stl4j</groupId>
+            <artifactId>stl-decomp-4j</artifactId>
+            <version>1.0.5</version>
+        </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>

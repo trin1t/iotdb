@@ -21,15 +21,159 @@
 
 # Time Series Forecast
 ## Decompose
+### Usage
+
+This function decomposes input time series to the addition or multiplication of trending, seasonal, and residual series with traditional additive or multiplicative model.
+**Name:** Decompose
+
+**Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Parameter:**
++ `period`: Period length of input time series, which should be an integer larger than 1. Counted by number of points.
++ `method`: Model to fit when doing decomposition. Should be "additive" or "multiplicative". Default is "additive".
++ `output`: Series indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
+
+**Output Series:** Output a single series. The type is DOUBLE.
+
+**Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Examples
+
+#### Decomposition with additive model
+
+Input series:
+
+```
++-----------------------------+---------------+
+|                         Time|root.test.d1.s1|
++-----------------------------+---------------+
+|1970-01-01T08:00:00.000+08:00|         315.71|
+|1970-01-01T08:00:00.001+08:00|         317.45|
+|1970-01-01T08:00:00.002+08:00|          317.5|
+|1970-01-01T08:00:00.003+08:00|          317.1|
+|1970-01-01T08:00:00.004+08:00|         315.86|
+|1970-01-01T08:00:00.005+08:00|         314.93|
+|1970-01-01T08:00:00.006+08:00|          313.2|
+...
+Total line number = 708
+```
+
+SQL for query:
+
+```sql
+select decompose(s1, 'period' = '12', 'method' = 'additive', 'output' = 'trend') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+--------------------------------------------------------------------------------+
+|                         Time|decompose(root.test.d1.s1, "period"="12", "method"="additive", "output"="trend")|
++-----------------------------+--------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.006+08:00|                                                              315.40916666666664|
+|1970-01-01T08:00:00.007+08:00|                                                              315.46208333333334|
+|1970-01-01T08:00:00.008+08:00|                                                                       315.50625|
+|1970-01-01T08:00:00.009+08:00|                                                               315.5829166666667|
+|1970-01-01T08:00:00.010+08:00|                                                              315.65500000000003|
+|1970-01-01T08:00:00.011+08:00|                                                               315.6779166666667|
+|1970-01-01T08:00:00.012+08:00|                                                              315.69916666666666|
+...
+Total line number = 696
+```
+SQL for query:
+
+```sql
+select decompose(s1, 'period' = '12', 'method' = 'additive', 'output' = 'residual') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+-----------------------------------------------------------------------------------+
+|                         Time|decompose(root.test.d1.s1, "period"="12", "method"="additive", "output"="residual")|
++-----------------------------+-----------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.006+08:00|                                                                 0.9237356321838588|
+|1970-01-01T08:00:00.007+08:00|                                                                0.43947557471259424|
+|1970-01-01T08:00:00.008+08:00|                                                               -0.11025862068976355|
+|1970-01-01T08:00:00.009+08:00|                                                              -0.028714080459828817|
+|1970-01-01T08:00:00.010+08:00|                                                               -0.07654454022997274|
+|1970-01-01T08:00:00.011+08:00|                                                                0.01531609195390815|
+|1970-01-01T08:00:00.012+08:00|                                                                -0.4370043103448982|
+...
+Total line number = 696
+```
+#### Decomposition with multiplicative model
+
+Input series:
+
+```
++-----------------------------+---------------+
+|                         Time|root.test.d1.s1|
++-----------------------------+---------------+
+|1970-01-01T08:00:00.000+08:00|         315.71|
+|1970-01-01T08:00:00.001+08:00|         317.45|
+|1970-01-01T08:00:00.002+08:00|          317.5|
+|1970-01-01T08:00:00.003+08:00|          317.1|
+|1970-01-01T08:00:00.004+08:00|         315.86|
+|1970-01-01T08:00:00.005+08:00|         314.93|
+|1970-01-01T08:00:00.006+08:00|          313.2|
+...
+Total line number = 708
+```
+
+SQL for query:
+
+```sql
+select decompose(s1, 'period' = '12', 'method' = 'multiplicative', 'output' = 'trend') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+--------------------------------------------------------------------------------------+
+|                         Time|decompose(root.test.d1.s1, "period"="12", "method"="multiplicative", "output"="trend")|
++-----------------------------+--------------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.006+08:00|                                                                    315.40916666666664|
+|1970-01-01T08:00:00.007+08:00|                                                                    315.46208333333334|
+|1970-01-01T08:00:00.008+08:00|                                                                             315.50625|
+|1970-01-01T08:00:00.009+08:00|                                                                     315.5829166666667|
+|1970-01-01T08:00:00.010+08:00|                                                                    315.65500000000003|
+|1970-01-01T08:00:00.011+08:00|                                                                     315.6779166666667|
+|1970-01-01T08:00:00.012+08:00|                                                                    315.69916666666666|
+...
+Total line number = 696
+```
+SQL for query:
+
+```sql
+select decompose(s1, 'period' = '12', 'method' = 'multiplicative', 'output' = 'residual') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+-----------------------------------------------------------------------------------------+
+|                         Time|decompose(root.test.d1.s1, "period"="12", "method"="multiplicative", "output"="residual")|
++-----------------------------+-----------------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.006+08:00|                                                                        1.001927194431198|
+|1970-01-01T08:00:00.007+08:00|                                                                       1.0003686308901425|
+|1970-01-01T08:00:00.008+08:00|                                                                         0.99899519389507|
+|1970-01-01T08:00:00.009+08:00|                                                                       0.9996499295945565|
+|1970-01-01T08:00:00.010+08:00|                                                                       0.9997951326019452|
+|1970-01-01T08:00:00.011+08:00|                                                                       1.0002873633298288|
+|1970-01-01T08:00:00.012+08:00|                                                                       0.9990986638746625|
+...
+Total line number = 696
+```
 
 ## STL
 ### Usage
 
-The function decomposes input time series to the addition of trending, seasonal, and residual series with STL algorithm.
+This function decomposes input time series to the addition of trending, seasonal, and residual series with STL algorithm.
 
 **Name:** STL
 
-**Input Series:** Only support a single input series. The data type is TEXT.
+**Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
 
 **Parameter:**
 

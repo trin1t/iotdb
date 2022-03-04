@@ -55,6 +55,8 @@ public class UDTFSTL implements UDTF {
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
         .validateInputSeriesNumber(1)
+        .validateInputSeriesDataType(
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
         .validate(
             period -> (int) period > 1,
             "\"period\" should be an integer greater than one.",

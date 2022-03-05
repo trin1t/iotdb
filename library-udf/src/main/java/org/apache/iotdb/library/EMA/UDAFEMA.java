@@ -29,9 +29,6 @@ import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrat
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
-import com.github.servicenow.ds.stats.stl.SeasonalTrendLoess;
-import com.github.servicenow.ds.stats.stl.SeasonalTrendLoess.Builder;
-
 import java.util.ArrayList;
 
 /** Exponential Moving Average */

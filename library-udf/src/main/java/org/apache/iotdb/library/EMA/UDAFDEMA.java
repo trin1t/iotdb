@@ -29,9 +29,6 @@ import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrat
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
-import com.github.servicenow.ds.stats.stl.SeasonalTrendLoess;
-import com.github.servicenow.ds.stats.stl.SeasonalTrendLoess.Builder;
-
 import java.util.ArrayList;
 
 /** Exponential Moving Average */
@@ -51,8 +48,8 @@ public class UDTFSTL implements UDTF {
                     0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
             .validate(
                     period -> (int) period > 1,
-                    "\"period\" should be an integer greater than one.",
-                    validator.getParameters().getInt("period"))
+                    "\"window\" should be an integer greater than one.",
+                    validator.getParameters().getInt("window"))
   }
 
   @Override
@@ -61,7 +58,7 @@ public class UDTFSTL implements UDTF {
     configurations
             .setAccessStrategy(new RowByRowAccessStrategy())
             .setOutputDataType(TSDataType.DOUBLE);
-    period = parameters.getInt("period");
+    period = parameters.getInt("window");
     value = 0;
     ema = 0;
     count = 0;
@@ -73,7 +70,7 @@ public class UDTFSTL implements UDTF {
       return;
     }
     value=Util.getValueAsDouble(row, 1);
-    ema=(2.0/(period+1))*ema+(1-2.0/(period+1))*value;
+    ema=(2.0/(window+1))*ema+(1-2.0/(window+1))*value;
     count+=1;
   }
 

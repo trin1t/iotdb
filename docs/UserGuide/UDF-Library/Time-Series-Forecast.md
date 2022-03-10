@@ -23,7 +23,7 @@
 ## Decompose
 ### Usage
 
-This function decomposes input time series to the addition or multiplication of trending, seasonal, and residual series with traditional additive or multiplicative model.
+This function decomposes input time series to the addition or multiplication of trending, seasonal, and residual series with classical additive or multiplicative model.
 **Name:** Decompose
 
 **Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
@@ -36,6 +36,31 @@ This function decomposes input time series to the addition or multiplication of 
 **Output Series:** Output a single series. The type is DOUBLE.
 
 **Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Model Explanation
+
+Classical model supposes the time series as overlay of seasonal effect on overall trend.
+The seasonal effect means the periodic change of data. For example, data may fluctuate with a period of four seasons, or twelve months, and so on.
+Classical model treats data as the addition or multiplication of trending term and seasonal term. And the reminder is residual.
+If we note the original time series data as $$Y_t$$, trending term as $$T_t$$, seasonal term as $$S_t$$, residual as $$R_t$$,
+then classical model can be written as
+$$
+Y_t = T_t + S_t + R_t\newline
+Y_t = T_t * S_t * R_t
+$$
+
+In classical model, trending item at a certain moment is mere the moving average centering at this moment, with window length equal to the length of period.
+(If the window length is an even number, then it is added by one, while the weight of data at the margin of window decreases by half.)
+If you suppose to get a linear trend, please try Holt-Winters function.
+
+Seasonal item is the arithmetical mean of data at the same phase position of a period, removing trending term.
+For example, a time series has a period of four seasons. After the trending term is removed, the arithmetical mean of all data in spring is the seasonal item in spring.
+Therefore, seasonal item repeats periodically.
+
+The advantage of this model lies in its simplicity, so calculation takes very little time.
+For more robustness, you may try STL function for decomposition.
+The disadvantage is that there are undecomposable points at the beginning and the end of original series, which lasts half of the window length separately.
+If you merely desire trending item, you may use MvAvg function in Data Profiling package instead.
 
 ### Examples
 
@@ -193,6 +218,19 @@ This function decomposes input time series to the addition of trending, seasonal
 **Output Series:** Output a single series. The type is DOUBLE.
 
 **Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Model Explanation
+Here we only offer simple introduction. For detailed information, please refer to
+
+Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.
+
+STL is the abbreviate of Seasonal and Trend decomposition using Loess, which adopts additive model.
+In comparison to classical model, STL utilize LOESS (locally weighted regression) to smooth trending term.
+You may refer to any tutorial book on linear regression for detailed introduction of LOESS.
+The advantage over classical model is that it allows seasonal term change with time. It is also insensitive to outliers. Besides, it can decompose the beginning and the end of the series.
+
+There are quite a few parameters for this function. Only `period` is a necessity. Other parameters keep same with stl in R (only "." is omitted).
+You may refer to [R documentation](https://search.r-project.org/R/refmans/stats/html/stl.html).
 
 ### Examples
 

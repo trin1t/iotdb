@@ -28,10 +28,11 @@ This function decomposes input time series to the addition or multiplication of 
 
 **Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
 
-**Parameter:**
+**Parameters:**
+
 + `period`: Period length of input time series, which should be an integer larger than 1. Counted by number of points.
 + `method`: Model to fit when doing decomposition. Should be "additive" or "multiplicative". Default is "additive".
-+ `output`: Series indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
++ `output`: String indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
 
 **Output Series:** Output a single series. The type is DOUBLE.
 
@@ -191,7 +192,136 @@ Output series:
 Total line number = 696
 ```
 
+## Holt-Winters
+
+### Usage
+
+This function decomposes input time series to the addition or multiplication of trending, seasonal, and residual series with Holt-Winters model, and is able to forecast continuing data.
+
+**Name：** HoltWinters
+
+**Input Series：** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Parameters：**
+
++ `period`: Period length of input time series, which should be an integer larger than 1. Counted by number of points.
++ `method`: Model to decompose. Should be "additive", "multiplicative" or "linear". Default is "additive".
++ `alpha`: Data smoothening factor of Holt-Winters model, ranging in [0,1]. Default is 0.5.
++ `beta`: Trend smoothening factor of Holt-Winters model, ranging in [0,1]. Default is 0.5.
++ `gamma`: Seasonal smoothening factor of Holt-Winters model, ranging in [0,1]. Effective only when `method` is not "linear" . Default is 0.5.
++ `forecastNumber`: Number of points to forecast. Timestamp of forecasted data is extended from original data, whose interval is arithmetic mean of original series. When `method ` is "residual" there is no additional output (because there is no residual).
++ `auto`: Boolean. If to select model parameters automatically. If set to "true", the function will optimize RMSE of fitted model with BOBYQA, and input `alpha`, `beta`, `gamma` will be used as initial searching point. Default is "true".
++ `maxEval`: Maximum iteration times when automatically searching parameters.
++ `output`:  String indicating output. Should be "trend", "seasonal", "fitted" or "residual". Default is "fitted".
+
+**Output Series:** Output a single series. The type is DOUBLE.
+
+**Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Model Explanation
+
+Holt-Winters model is based on exponential moving average (see EMA). To solve lagging in smoothened data, we may use double exponential moving average (see DEMA), namely `method` = "linear". Note original time series as  $$Y_t$$, trending term as $$T_t$$, seasonal term as $$S_t$$, residual term as $$R_t$$, then the model is
+$$
+Y_t = S_t + T_t + R_t
+\newline
+S_t = \alpha Y_t + (1 - \alpha)(S_{t-1}+T_{t-1})
+\newline
+T_t = \beta (s_t - s_{t-1}) + (1 - \beta)b_{t-1}
+$$
+Forecast  $$F_{t+m}$$ at the $$m$$th moment after moment $$t$$  is
+$$
+F_{t+m} = S_t + m * T_t
+$$
+If we take the variation of trending term into consideration, we may use triple exponential moving average. (see TEMA). This is useful when overall trend is linear and and period length $$L$$ is fixed. The additive model is
+$$
+Y_t = T_t + S_t + R_t\newline
+S_0 = Y_0\newline
+S_t = \alpha(Y_t-C_{t-L}) + (1 - \alpha)(S_{t-1} + T_{t-1})\newline
+T_t = \beta (S_t - S_{t-1}) + (1 - \beta)T_{t-1}\newline
+C_t = \gamma (Y_t - S_{t-1} - T_{t-1}) + (1 - \gamma)C_{t-L}\newline
+F_{t+m} = S_t + mT_t + C_{t-L+1+(m-1) \mod L}
+$$
+And the multiplicative model is
+$$
+Y_t = T_t * S_t * R_t\newline
+S_0 = Y_0\newline
+S_t = \alpha\frac{Y_t}{C_{t-L}} + (1 - \alpha)(S_{t-1} + T_{t-1})\newline
+T_t = \beta (S_t - S_{t-1}) + (1 - \beta)T_{t-1}\newline
+C_t = \gamma \frac{Y_t}{S_t} + (1 - \gamma)C_{t-L}\newline
+F_{t+m} = (S_t + mT_t)C_{t-L+1+(m-1) \mod L}
+$$
+
+Here $$C_t$$ is the linear variation speed of trending term.
+
+### Examples
+
+#### Decomposition with additive model and auto parameters
+
+Input series:
+
+```
++-----------------------------+---------------+
+|                         Time|root.test.d1.s1|
++-----------------------------+---------------+
+|1970-01-01T08:00:00.000+08:00|         315.71|
+|1970-01-01T08:00:00.001+08:00|         317.45|
+|1970-01-01T08:00:00.002+08:00|          317.5|
+|1970-01-01T08:00:00.003+08:00|          317.1|
+|1970-01-01T08:00:00.004+08:00|         315.86|
+|1970-01-01T08:00:00.005+08:00|         314.93|
+|1970-01-01T08:00:00.006+08:00|          313.2|
+...
+Total line number = 708
+```
+
+SQL for query:
+
+```sql
+select holtwinters(s1, 'period' = '12', 'method' = 'additive','forecastNumber'='10','output' = 'fitted') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+----------------------------------------------------------------------------------------------------------+
+|                         Time|holtwinters(root.test.d1.s1, "period"="12", "method"="additive", "forecastNumber"="10", "output"="fitted")|
++-----------------------------+----------------------------------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.000+08:00|                                                                                         315.7702777777778|
+|1970-01-01T08:00:00.001+08:00|                                                                                         317.5401997144624|
+|1970-01-01T08:00:00.002+08:00|                                                                                        317.60462474676166|
+|1970-01-01T08:00:00.003+08:00|                                                                                        317.21114452436507|
+|1970-01-01T08:00:00.004+08:00|                                                                                         315.9736376452674|
+|1970-01-01T08:00:00.005+08:00|                                                                                         315.0440856111198|
+|1970-01-01T08:00:00.006+08:00|                                                                                        313.31350064811704|
+...
+Total line number = 718
+```
+
+SQL for query:
+
+```sql
+select holtwinters(s1, 'period' = '12', 'method' = 'additive', 'output' = 'residual') from root.test.d1
+```
+
+Output series:
+
+```
++-----------------------------+-------------------------------------------------------------------------------------+
+|                         Time|holtwinters(root.test.d1.s1, "period"="12", "method"="additive", "output"="residual")|
++-----------------------------+-------------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.000+08:00|                                                                 -0.06027777777779875|
+|1970-01-01T08:00:00.001+08:00|                                                                  -0.0901997144624147|
+|1970-01-01T08:00:00.002+08:00|                                                                 -0.10462474676165812|
+|1970-01-01T08:00:00.003+08:00|                                                                 -0.11114452436504507|
+|1970-01-01T08:00:00.004+08:00|                                                                 -0.11363764526737441|
+|1970-01-01T08:00:00.005+08:00|                                                                 -0.11408561111977633|
+|1970-01-01T08:00:00.006+08:00|                                                                 -0.11350064811705352|
+...
+Total line number = 696
+```
+
 ## STL
+
 ### Usage
 
 This function decomposes input time series to the addition of trending, seasonal, and residual series with STL algorithm.
@@ -200,20 +330,20 @@ This function decomposes input time series to the addition of trending, seasonal
 
 **Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
 
-**Parameter:**
+**Parameters:**
 
 + `period`: Period length of input time series, which should be an integer larger than 1. Counted by number of points.
 + `swindow`: The span (in lags) of the loess window for seasonal extraction, which should be odd and at least 7. Or leave it default for periodic regression.
 + `sdegree`: Degree of locally-fitted polynomial in seasonal extraction. Should be 0 or 1. Default is 0.
-+ `sjump`: Integer at least one to increase speed of the seasonal smoother. Linear interpolation happens between every `sjump`th value. Default is `ceil(swindow/10)`.
++ `sjump`: Integer at least one to increase speed of the seasonal smoothener. Linear interpolation happens between every `sjump`th value. Default is `ceil(swindow/10)`.
 + `twindow`: The span (in lags) of the loess window for trend extraction, which should be odd. Default is `nextodd(ceil((1.5*period) / (1-(1.5/swindow))))`.
 + `tdegree`: Degree of locally-fitted polynomial in trend extraction. Should be 0 or 1. Default is 1.
-+ `tjump`: Integer at least one to increase speed of the trend smoother. Linear interpolation happens between every `tjump`th value. Default is `ceil(twindow/10)`.
++ `tjump`: Integer at least one to increase speed of the trend smoothener. Linear interpolation happens between every `tjump`th value. Default is `ceil(twindow/10)`.
 + `lwindow`: The span (in lags) of the loess window of the low-pass filter used for each subseries. Default is the smallest odd integer greater than or equal to `period`.
 + `ldegree`: Degree of locally-fitted polynomial for the subseries low-pass filter, which should be 0 or 1. Default is equal to `tdegree`.
-+ `ljump`: Integer at least one to increase speed of the low-pass filter smoother. Linear interpolation happens between every `ljump`th value. Default is `ceil(lwindow/10)`.
++ `ljump`: Integer at least one to increase speed of the low-pass filter smoothener. Linear interpolation happens between every `ljump`th value. Default is `ceil(lwindow/10)`.
 + `robust`: Boolean indicating if robust fitting be used in the loess procedure. Default is false.
-+ `output`: Series indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
++ `output`: String indicating output. Should be "trend", "seasonal" or "residual". Default is "trend".
 
 **Output Series:** Output a single series. The type is DOUBLE.
 
@@ -225,9 +355,11 @@ Here we only offer simple introduction. For detailed information, please refer t
 Cleveland, R. B., Cleveland, W. S., McRae, J. E., & Terpenning, I. J. (1990). STL: A seasonal-trend decomposition procedure based on loess. Journal of Official Statistics, 6(1), 3–33.
 
 STL is the abbreviate of Seasonal and Trend decomposition using Loess, which adopts additive model.
-In comparison to classical model, STL utilize LOESS (locally weighted regression) to smooth trending term.
+In comparison to classical model, STL utilize LOESS (locally weighted regression) to smoothen trending term.
 You may refer to any tutorial book on linear regression for detailed introduction of LOESS.
-The advantage over classical model is that it allows seasonal term change with time. It is also insensitive to outliers. Besides, it can decompose the beginning and the end of the series.
+The advantage over classical model is that it allows seasonal term change with time. It is also insensitive to outliers, as seen in the picture. Besides, it can decompose the beginning and the end of the series.
+
+![stl-example](G:\iotdb\docs\UserGuide\UDF-Library\stl-example.png)
 
 There are quite a few parameters for this function. Only `period` is a necessity. Other parameters keep same with stl in R (only "." is omitted).
 You may refer to [R documentation](https://search.r-project.org/R/refmans/stats/html/stl.html).

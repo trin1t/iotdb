@@ -68,7 +68,11 @@ public class UDTFDecompose implements UDTF {
                     || ((String) output).equalsIgnoreCase("seasoanl")
                     || ((String) output).equalsIgnoreCase("residual"),
             "\"output\" should be \"trend\", \"seasonal\", or \"residual\"",
-            validator.getParameters().getStringOrDefault("output", "trend"));
+            validator.getParameters().getStringOrDefault("output", "trend"))
+        .validate(
+            forecast -> (int) forecast >= 0,
+            "\"forecast\" should be a non-negative integer",
+            validator.getParameters().getIntOrDefault("forecast", 0));
   }
 
   @Override
@@ -127,6 +131,9 @@ public class UDTFDecompose implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
+    if (value.size() <= period) {
+      return;
+    }
     Double[] seasonalAverage = new Double[period];
     Integer[] seasons = new Integer[period];
     for (int i = 0; i < period; i++) {

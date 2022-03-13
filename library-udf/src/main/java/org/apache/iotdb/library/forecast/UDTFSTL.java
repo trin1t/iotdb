@@ -139,6 +139,9 @@ public class UDTFSTL implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
+    if (value.size() <= period) {
+      return;
+    }
     double[] values = value.stream().mapToDouble(Double::valueOf).toArray();
     SeasonalTrendLoess.Builder builder = new Builder();
     builder.setPeriodLength(period);

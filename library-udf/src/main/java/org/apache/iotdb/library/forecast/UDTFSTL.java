@@ -147,10 +147,10 @@ public class UDTFSTL implements UDTF {
     builder.setPeriodLength(period);
     if (sWindow > 0) {
       builder.setSeasonalWidth(sWindow);
+      builder.setSeasonalDegree(sDegree);
     } else {
       builder.setPeriodic();
     }
-    builder.setSeasonalDegree(sDegree);
     if (tWindow > 0) {
       builder.setTrendWidth(tWindow);
     }

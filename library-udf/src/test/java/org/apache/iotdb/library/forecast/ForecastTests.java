@@ -160,6 +160,8 @@ public class ForecastTests {
       statement.execute(
           "create function decompose as 'org.apache.iotdb.library.forecast.UDTFDecompose'");
       statement.execute("create function stl as 'org.apache.iotdb.library.forecast.UDTFSTL'");
+      statement.execute(
+          "create function HoltWinters as 'org.apache.iotdb.library.forecast.UDTFHoltWinters'");
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }
@@ -176,14 +178,15 @@ public class ForecastTests {
 
   @Test
   public void testDecompose1() {
-    String sqlStr = "select decompose(d1.s1,'period'='12','output'='trend') from root.season";
+    String sqlStr = "select decompose(d1.s1,'period'='12','output'='residual') from root.season";
     try (Connection connection = EnvFactory.getEnv().getConnection();
         Statement statement = connection.createStatement()) {
       ResultSet resultSet = statement.executeQuery(sqlStr);
       resultSet.next();
-      double result1 = resultSet.getDouble(1);
-      Assert.assertEquals(10.0, result1, 0.01);
-      Assert.assertFalse(resultSet.next());
+      while (resultSet.next()) {
+        double result1 = resultSet.getDouble(1);
+        Assert.assertEquals(0, result1, 1.5);
+      }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }
@@ -191,14 +194,31 @@ public class ForecastTests {
 
   @Test
   public void testSTL1() {
-    String sqlStr = "select stl(d1.s1,'period'='12','output'='trend') from root.season";
+    String sqlStr = "select stl(d1.s1,'period'='12','output'='residual') from root.season";
     try (Connection connection = EnvFactory.getEnv().getConnection();
         Statement statement = connection.createStatement()) {
       ResultSet resultSet = statement.executeQuery(sqlStr);
       resultSet.next();
-      double result1 = resultSet.getDouble(1);
-      Assert.assertEquals(10.0, result1, 0.01);
-      Assert.assertFalse(resultSet.next());
+      while (resultSet.next()) {
+        double result1 = resultSet.getDouble(1);
+        Assert.assertEquals(0, result1, 1.5);
+      }
+    } catch (SQLException throwable) {
+      fail(throwable.getMessage());
+    }
+  }
+
+  @Test
+  public void testHoltWinters1() {
+    String sqlStr = "select HoltWinters(d1.s1,'period'='12','output'='residual') from root.season";
+    try (Connection connection = EnvFactory.getEnv().getConnection();
+        Statement statement = connection.createStatement()) {
+      ResultSet resultSet = statement.executeQuery(sqlStr);
+      resultSet.next();
+      while (resultSet.next()) {
+        double result1 = resultSet.getDouble(1);
+        Assert.assertEquals(0, result1, 1.5);
+      }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }

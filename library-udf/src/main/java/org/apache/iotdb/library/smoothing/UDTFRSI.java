@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.iotdb.library.ema;
+package org.apache.iotdb.library.smoothing;
 
 import org.apache.iotdb.db.query.udf.api.UDTF;
 import org.apache.iotdb.db.query.udf.api.access.Row;
@@ -30,11 +30,14 @@ import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrat
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
-/** Exponential Moving Average */
-public class UDAFEMA implements UDTF {
+/** Triple Exponential Moving Average */
+public class UDTFRSI implements UDTF {
 
-  private double cvalue = 0;
-  private double ema = 0.0;
+  private double cvalue1 = 0;
+  private double cvalue2 = 0;
+  private double rsi = 0.0;
+  private double positive = 0.0;
+  private double negative = 0.0;
   private int window = 0;
   private int n = 0;
   private TSDataType dataType;
@@ -58,8 +61,11 @@ public class UDAFEMA implements UDTF {
             .setAccessStrategy(new RowByRowAccessStrategy())
             .setOutputDataType(TSDataType.DOUBLE);
     window = parameters.getInt("window");
-    cvalue = 0;
-    ema = 0;
+    rsi = 0;
+    cvalue1 = 0;
+    cvalue2 = 0;
+    positive = 0;
+    negative = 0;
     n = 0;
     dataType = parameters.getDataType(0);
   }
@@ -75,15 +81,28 @@ public class UDAFEMA implements UDTF {
       }
       for (int i = window; i < n; i++)
       {
-        ema=0;
+        rsi=0;
+        positive=0;
+        negative=0;
         Row row = rowWindow.getRow(i);
+        Row row2 = rowWindow.getRow((int) i-window-1);
+        cvalue1=Util.getValueAsDouble(row2, 1);
         for (int j=0;j<window;j++)
         {
-          Row row2 = rowWindow.getRow((int) i-window+j);
-          cvalue=Util.getValueAsDouble(row2, 1);
-          ema=(2.0/(window+1))*ema+(1-2.0/(window+1))*cvalue;
+          row2 = rowWindow.getRow((int) i-window+j);
+          cvalue2=Util.getValueAsDouble(row2, 1);
+          if(cvalue2-cvalue1>0)
+          {
+            positive+=cvalue2-cvalue1;
+          }
+          else
+          {
+            negative+=-(cvalue2-cvalue1);
+          }
+          cvalue1=cvalue2;
         }
-        Util.putValue(collector, dataType, row.getTime(), ema);
+        rsi=positive/(positive+negative);
+        Util.putValue(collector, dataType, row.getTime(), rsi);
       }
     }
   }

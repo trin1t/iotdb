@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.iotdb.library.ema;
+package org.apache.iotdb.library.smoothing;
 
 import org.apache.iotdb.db.query.udf.api.UDTF;
 import org.apache.iotdb.db.query.udf.api.access.Row;
@@ -30,12 +30,13 @@ import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrat
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
-/** Double Exponential Moving Average */
-public class UDAFDEMA implements UDTF {
+/** Triple Exponential Moving Average */
+public class UDTFTEMA implements UDTF {
 
   private double cvalue1 = 0;
   private double ema1 = 0.0;
   private double ema2 = 0.0;
+  private double ema3 = 0.0;
   private int window = 0;
   private int n = 0;
   private TSDataType dataType;
@@ -62,6 +63,7 @@ public class UDAFDEMA implements UDTF {
     cvalue1 = 0;
     ema1 = 0;
     ema2 = 0;
+    ema3 = 0;
     n = 0;
     dataType = parameters.getDataType(0);
   }
@@ -79,6 +81,7 @@ public class UDAFDEMA implements UDTF {
       {
         ema1=0;
         ema2=0;
+        ema3=0;
         Row row = rowWindow.getRow(i);
         for (int j=0;j<window;j++)
         {
@@ -86,8 +89,9 @@ public class UDAFDEMA implements UDTF {
           cvalue1=Util.getValueAsDouble(row2, 1);
           ema1=(2.0/(window+1))*ema1+(1-2.0/(window+1))*cvalue1;
           ema2=(2.0/(window+1))*ema2+(1-2.0/(window+1))*ema1;
+          ema3=(2.0/(window+1))*ema3+(1-2.0/(window+1))*ema2;
         }
-        Util.putValue(collector, dataType, row.getTime(), 2*ema1-ema2);
+        Util.putValue(collector, dataType, row.getTime(), 3*ema1-3*ema2+ema3);
       }
     }
   }

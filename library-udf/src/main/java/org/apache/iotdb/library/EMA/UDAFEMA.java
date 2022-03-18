@@ -68,6 +68,11 @@ public class UDAFEMA implements UDTF {
   public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
     n = rowWindow.windowSize();
     if (window < n) {
+      for(int i=0;i<window;i++)
+      {
+        Row row = rowWindow.getRow(i);
+        Util.putValue(collector, dataType, row.getTime(),Double.NaN);
+      }
       for (int i = window; i < n; i++)
       {
         ema=0;

@@ -20,7 +20,88 @@
 -->
 
 # Time Series Forecast
+## ARIMA
+
+### Usage
+
+This function fits input time series with ARIMA (Box-Jenkins) model, and forecasts the future series.
+
+**Name:** ARIMA
+
+**Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Parameters:**
+
++ `p`: Parameter of AR (autoregressive) model. Should be an integer no less than 0.
++ `d`: Orders of difference. Should be an integer no less than 0.
++ `q`: Parameter of MA (moving average) model. Should be an integer no less than 0.
++ `forecastNumber`: Number of points to forecast.
++ `output`
+
+**Output Series:** Output a single series. The type is DOUBLE.
+
+**Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Model Explanation
+
+ARIMA (Autoregressive Integrated Moving Average, Box-Jenkins) model is the most widely-used time series analysis model. It is composed of AR (Autoregressive), MA (Moving Average) and difference. There are 3 parameters in this model in total, and should be noted as ARIMA(d,p,q), which is the extension of ARMA(p,q) (traditional Box-Jenkins).
+
+Here we introduce these parts of this model.
+
++ AR (Autoregressive) model
+
+This model supposes that there is a linear relation between the value at $t$ and $p$ values ahead of it. Note the time series as $Y_t$, then the model is
+$$
+Y_t = \sum_{i=1}^{p}{\phi_i Y_{t-i}} + \phi_0 + \epsilon_t
+$$
+Here, $(\phi_0,\phi_1,\cdots,\phi_p)$ are the regressive coefficients of the linear model, and $\epsilon_t$ is residual.
+
+We only need to assign $p$ to finish fitting. The accuracy of the model depends on the strength of autoregression of original series. When there is a strong autoregression, the model receives good effect. You may use ACF to evaluate the strength of autoregression.
+
++ MA (Moving Average) model
+
+This model is in form of
+$$
+Y_t = \theta_0 + \epsilon_t + \sum_{i=1}^{q}{\theta_i \epsilon_{t-i}}
+$$
+Here  $\theta_0$ is mean of the whole series, $\epsilon_t$ residual at moment $t$, $(\theta_1, \theta_2,\cdots,\theta_q)$ are model parameters.
+
+Hence, this model always use residual in a moving window with length $q$ to fit the value at next moment.
+
++ ARMA (Autoregressive Moving Average) model
+
+This model is the implementation of AR model on MA model. That is to say, this model first computes moving average, and then does autoregressive model fitting. Therefore, there are two parameters $p,q$ in this model. The formula is
+$$
+Y_t = \phi_0 + \sum_{i=1}^{p}{\phi_i Y_{t-i}} + \theta_0 + \epsilon_t + \sum_{i=1}^{q}{\theta_i \epsilon_{t-i}}
+$$
+If we introduce the lag operator $L$, let  $L^i$ operates on some series to sign for $i$th lags of original series. Then the model is
+$$
+(1 - \sum_{i=1}^{p}{\phi_i L^i}) Y_t = (1 + \sum_{i=1}^{q}{\theta_i L^i})\epsilon_t + (\phi_0 + \theta_0)
+$$
+
++ ARIMA (Autoregressive Integrated Moving Average) model
+
+For unstationary time series, we usually compute $d$ order difference to make it stationary. Then we apply ARMA model on $d$ order difference series to get ARIMA model. ARIMA(p,d,q) has a formula
+$$
+(1-\sum_{i=1}^{p}{\phi_i L^i})(1-L)^d Y_t = (1+\sum_{i=1}^{q}{\theta_i L^i})\epsilon_t + (\phi_0 + \theta_0)
+$$
+The only difference from ARMA model is that the original series $Y_t$ is replaced by $d$ order difference $(1-L)^d Y_t$.
+
+There are some special cases when parameters are in low order. Here are some examples.
+
++ ARIMA(0,1,0)	Namely MA(1). Random walk.
++ ARIMA(1,0,0)	Namely AR(1). The series has a exponential trend.
++ ARIMA(0,1,1)	Simple exponential smoothing. If there is a constant in the model, it comes to simple exponential smoothing with growth.
++ ARIMA(0,2,1)	Linear exponential smoothing.
+
+You may choose the parameters with the following steps.
+
++ Compute $1$ to $d$ order difference, until the series becomes stationary. Usually you can use ADF (TBD) or QLB to conduct hypothesis test.
++ Compute ACF and PACF of stationary series. For AR(p) model, PACF truncates at $p$ lags. For MA(q) model, ACF truncates at $q$ lags. For normal situations, you should refer to AIC, BIC or other citerias.
+  + Truncate: the continuing values shrinking to zero.
+
 ## Decompose
+
 ### Usage
 
 This function decomposes input time series to the addition or multiplication of trending, seasonal, and residual series with classical additive or multiplicative model.

@@ -158,10 +158,10 @@ public class SmoothingTests {
     try (Connection connection = EnvFactory.getEnv().getConnection();
         Statement statement = connection.createStatement()) {
       statement.execute(
-          "create function ema as 'org.apache.iotdb.library.forecast.UDTFDEMA'");
-      statement.execute("create function dema as 'org.apache.iotdb.library.forecast.UDTFDEMA'");
+          "create function ema as 'org.apache.iotdb.library.smoothing.UDTFDEMA'");
+      statement.execute("create function dema as 'org.apache.iotdb.library.smoothing.UDTFDEMA'");
       statement.execute(
-          "create function TEMA as 'org.apache.iotdb.library.forecast.UDTFTEMA'");
+          "create function TEMA as 'org.apache.iotdb.library.smoothing.UDTFTEMA'");
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }

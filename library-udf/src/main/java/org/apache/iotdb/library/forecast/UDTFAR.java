@@ -106,11 +106,6 @@ public class UDTFAR implements UDTF {
       for (int i = 0; i < forecastSeq.length; i++) {
         collector.putDouble(i, forecastSeq[i]);
       }
-    } else if (output.equalsIgnoreCase("sequence")) {
-      double[] sequence = ar.getFitSeq();
-      for (int i = 0; i < sequence.length; i++) {
-        collector.putDouble(i, sequence[i]);
-      }
     } else if (output.equalsIgnoreCase("residual")) {
       double[] residual = ar.getResidual();
       for (int i = 0; i < residual.length; i++) {

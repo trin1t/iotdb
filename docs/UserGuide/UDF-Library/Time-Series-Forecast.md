@@ -35,7 +35,7 @@ This function fits input time series with ARIMA (Box-Jenkins) model, and forecas
 + `p`: Parameter of AR (autoregressive) model. Should be an integer no less than 0.
 + `d`: Orders of difference. Should be an integer no less than 0.
 + `q`: Parameter of MA (moving average) model. Should be an integer no less than 0.
-+ `forecastNumber`: Number of points to forecast.
++ `steps`: Number of points to forecast.
 + `output`
 
 **Output Series:** Output a single series. The type is DOUBLE.
@@ -373,7 +373,7 @@ This function decomposes input time series to the addition or multiplication of 
 + `alpha`: Data smoothening factor of Holt-Winters model, ranging in [0,1]. Default is 0.5.
 + `beta`: Trend smoothening factor of Holt-Winters model, ranging in [0,1]. Default is 0.5.
 + `gamma`: Seasonal smoothening factor of Holt-Winters model, ranging in [0,1]. Effective only when `method` is not "linear" . Default is 0.5.
-+ `forecastNumber`: Number of points to forecast. Timestamp of forecasted data is extended from original data, whose interval is arithmetic mean of original series. When `method ` is "residual" there is no additional output (because there is no residual).
++ `steps`: Number of points to forecast. Timestamp of forecasted data is extended from original data, whose interval is arithmetic mean of original series. When `method ` is "residual" there is no additional output (because there is no residual).
 + `auto`: Boolean. If to select model parameters automatically. If set to "true", the function will optimize RMSE of fitted model with BOBYQA, and input `alpha`, `beta`, `gamma` will be used as initial searching point. Default is "true".
 + `maxEval`: Maximum iteration times when automatically searching parameters.
 + `output`:  String indicating output. Should be "trend", "seasonal", "fitted" or "residual". Default is "fitted".
@@ -441,14 +441,14 @@ Total line number = 708
 SQL for query:
 
 ```sql
-select holtwinters(s1, 'period' = '12', 'method' = 'additive','forecastNumber'='10','output' = 'fitted') from root.test.d1
+select holtwinters(s1, 'period' = '12', 'method' = 'additive','steps'='10','output' = 'fitted') from root.test.d1
 ```
 
 Output series:
 
 ```
 +-----------------------------+----------------------------------------------------------------------------------------------------------+
-|                         Time|holtwinters(root.test.d1.s1, "period"="12", "method"="additive", "forecastNumber"="10", "output"="fitted")|
+|                         Time|holtwinters(root.test.d1.s1, "period"="12", "method"="additive", "steps"="10", "output"="fitted")|
 +-----------------------------+----------------------------------------------------------------------------------------------------------+
 |1970-01-01T08:00:00.000+08:00|                                                                                         315.7702777777778|
 |1970-01-01T08:00:00.001+08:00|                                                                                         317.5401997144624|
@@ -734,5 +734,132 @@ Output series:
 |1970-01-01T08:00:00.008+08:00|                     0.23926594491679976|
 ...
 Total line number = 300
+```
+
+## SARIMA
+
+### Usage
+
+This function fits input time series with SARIMA model, and forecasts the future series.
+
+**Name:** SARIMA
+
+**Input Series:** Only support a single input series. The data type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Parameters:**
+
++ `p`: Parameter of AR (autoregressive) model. Should be an integer no less than 0.
++ `d`: Orders of difference. Should be an integer no less than 0.
++ `q`: Parameter of MA (moving average) model. Should be an integer no less than 0.
++ `P`: Parameter of seasonal AR model. Should be an integer no less than 0.
++ `D`: Orders of seasonal difference. Should be an integer no less than 0.
++ `Q`: Parameter of seasonal MA model. Should be an integer no less than 0.
++ `steps`: Number of points to forecast.
++ `output`
+
+**Output Series:** Output a single series. The type is DOUBLE.
+
+**Note:** This function ignores NaN values. Data points are considered with equal time interval. User may resample first before doing decomposition.
+
+### Examples
+
+Input series
+
+```
++-----------------------------+--------------------------+
+|                         Time|root.udf.sarima_test.value|
++-----------------------------+--------------------------+
+|2000-01-01T08:00:00.001+08:00|                     76273|
+|2000-02-01T08:00:00.001+08:00|                     70994|
+|2000-03-01T08:00:00.001+08:00|                     72795|
+|2000-04-01T08:00:00.001+08:00|                     79561|
+|2000-05-01T08:00:00.001+08:00|                     92584|
+|2000-06-01T08:00:00.001+08:00|                    102644|
+|2000-07-01T08:00:00.001+08:00|                    111101|
+|2000-08-01T08:00:00.001+08:00|                    115467|
+|2000-09-01T08:00:00.001+08:00|                    108515|
+|2000-10-01T08:00:00.001+08:00|                    105465|
+|2000-11-01T08:00:00.001+08:00|                     95800|
+|2000-12-01T08:00:00.001+08:00|                     89610|
+|2001-01-01T08:00:00.001+08:00|                     82219|
+|2001-02-01T08:00:00.001+08:00|                     74830|
+|2001-03-01T08:00:00.001+08:00|                     79845|
+...
+Total line number = 229
+```
+
+#### Output forecast results
+
+sql for query
+
+```sql
+select sarima(value, 'output' = 'forecast', 'p' = '4', 'q' = '1', 'd' = '1', 'P' = '2', 'Q' = '1', 'D' = '1', 'steps' = '20') from root.udf.sarima_test
+```
+
+output series
+
+```
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------+
+|                         Time|sarima(root.udf.arima_test.value, "output"="forecast", "p"="4", "q"="1", "d"="1", "P"="2", "Q"="1", "D"="1", "steps"="20")|
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------+
+|1970-01-01T08:00:00.101+08:00|                                                                                                         204.6209214376484|
+|1970-01-01T08:00:00.102+08:00|                                                                                                        210.74299281324542|
+|1970-01-01T08:00:00.103+08:00|                                                                                                        215.35740143689904|
+|1970-01-01T08:00:00.104+08:00|                                                                                                          217.371156756569|
+|1970-01-01T08:00:00.105+08:00|                                                                                                        217.25145744226663|
+|1970-01-01T08:00:00.106+08:00|                                                                                                         215.3795312079138|
+|1970-01-01T08:00:00.107+08:00|                                                                                                        212.85146352021266|
+|1970-01-01T08:00:00.108+08:00|                                                                                                        210.56066874448348|
+|1970-01-01T08:00:00.109+08:00|                                                                                                        209.67923065745984|
+|1970-01-01T08:00:00.110+08:00|                                                                                                         210.9768721252065|
+|1970-01-01T08:00:00.111+08:00|                                                                                                        214.51582186073625|
+|1970-01-01T08:00:00.112+08:00|                                                                                                        219.96010034091134|
+|1970-01-01T08:00:00.113+08:00|                                                                                                        226.45420989817816|
+|1970-01-01T08:00:00.114+08:00|                                                                                                        232.91431794034597|
+|1970-01-01T08:00:00.115+08:00|                                                                                                        238.23117706164606|
+|1970-01-01T08:00:00.116+08:00|                                                                                                        241.59295703294964|
+|1970-01-01T08:00:00.117+08:00|                                                                                                        242.69392439478455|
+|1970-01-01T08:00:00.118+08:00|                                                                                                        241.75345589017832|
+|1970-01-01T08:00:00.119+08:00|                                                                                                         239.5036928369731|
+|1970-01-01T08:00:00.120+08:00|                                                                                                        236.99516916720017|
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------+
+```
+
+#### output fitted series
+
+sql for query
+
+```sql
+select sarima(value, 'output' = 'fittedSeries', 'p' = '4', 'q' = '1', 'd' = '1', 'P' = '2', 'Q' = '1', 'D' = '1') from root.udf.sarima_test
+```
+
+output series
+
+```
++-----------------------------+-----------------------------------------------------------------------------------------------------------------+
+|                         Time|sarima(root.udf.sarima_test.value, "output"="fittedSeries", "p"="4", "q"="1", "d"="1", "P"="2", "Q"="1", "D"="1")|
++-----------------------------+-----------------------------------------------------------------------------------------------------------------+
+|2000-01-01T08:00:00.001+08:00|                                                                                                76238.88968989142|
+|2000-02-01T08:00:00.001+08:00|                                                                                                71108.13399262477|
+|2000-03-01T08:00:00.001+08:00|                                                                                                69090.67995088271|
+|2000-04-01T08:00:00.001+08:00|                                                                                                77059.64596370702|
+|2000-05-01T08:00:00.001+08:00|                                                                                                90584.17467718612|
+|2000-06-01T08:00:00.001+08:00|                                                                                               104743.82111610338|
+|2000-07-01T08:00:00.001+08:00|                                                                                               111689.32431887739|
+|2000-08-01T08:00:00.001+08:00|                                                                                               114885.87184020969|
+|2000-09-01T08:00:00.001+08:00|                                                                                               113847.66031971105|
+|2000-10-01T08:00:00.001+08:00|                                                                                               100816.28616052556|
+|2000-11-01T08:00:00.001+08:00|                                                                                                94384.27096121015|
+|2000-12-01T08:00:00.001+08:00|                                                                                                89911.14264540777|
+|2001-01-01T08:00:00.001+08:00|                                                                                                82148.07614332357|
+|2001-02-01T08:00:00.001+08:00|                                                                                                78605.60378163874|
+|2001-03-01T08:00:00.001+08:00|                                                                                                76442.34862369618|
+|2001-04-01T08:00:00.001+08:00|                                                                                                85583.74539755435|
+|2001-05-01T08:00:00.001+08:00|                                                                                               101929.42040485133|
+|2001-06-01T08:00:00.001+08:00|                                                                                               114973.62891475212|
+|2001-07-01T08:00:00.001+08:00|                                                                                               123878.71705603256|
+|2001-08-01T08:00:00.001+08:00|                                                                                               131463.67176800632|
+...
+Total line number = 229
 ```
 

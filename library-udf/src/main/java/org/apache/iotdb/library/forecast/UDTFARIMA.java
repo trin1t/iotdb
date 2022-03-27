@@ -108,7 +108,7 @@ public class UDTFARIMA implements UDTF {
     if (output.equalsIgnoreCase("fittedSeries")) {
       double[] fittedSeries = model.fittedSeries().asArray();
       for (int i = 0; i < fittedSeries.length; i++) {
-        collector.putDouble(i, fittedSeries[i]);
+        collector.putDouble(time.get(i), fittedSeries[i]);
       }
     } else if (output.equalsIgnoreCase("forecast")) {
       Forecast forecast = model.forecast(steps);
@@ -117,18 +117,6 @@ public class UDTFARIMA implements UDTF {
       long last_timestamp = time.get(time.size() - 1);
       for (int i = 0; i < forecast_series.length; i++) {
         collector.putDouble(i + last_timestamp + 1, forecast_series[i]);
-      }
-      last_timestamp += forecast_series.length;
-
-      double[] lower_series = forecast.lowerPredictionInterval().asArray();
-      for (int i = 0; i < lower_series.length; i++) {
-        collector.putDouble(i + last_timestamp + 1, lower_series[i]);
-      }
-      last_timestamp += lower_series.length;
-
-      double[] upper_series = forecast.upperPredictionInterval().asArray();
-      for (int i = 0; i < upper_series.length; i++) {
-        collector.putDouble(i + last_timestamp + 1, upper_series[i]);
       }
     }
   }

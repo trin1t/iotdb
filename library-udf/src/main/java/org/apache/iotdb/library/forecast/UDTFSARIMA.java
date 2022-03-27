@@ -80,12 +80,16 @@ public class UDTFSARIMA implements UDTF {
             "\"D\" must be a non-negative integer.",
             validator.getParameters().getInt("D"))
         .validate(
+            steps -> (int) steps > 0,
+            "\"steps\" must be a positive integer.",
+            validator.getParameters().getIntOrDefault("steps", 1))
+        .validate(
             output ->
-                ((String) output).equalsIgnoreCase("coefficient")
-                    || ((String) output).equalsIgnoreCase("sequence")
-                    || ((String) output).equalsIgnoreCase("residual"),
-            "\"output\" should be \"coefficient\", \"sequence\", or \"residual\"",
-            validator.getParameters().getStringOrDefault("output", "coefficient"));
+                ((String) output).equalsIgnoreCase("fittedSeries")
+                    || ((String) output).equalsIgnoreCase("forecast")
+                    || ((String) output).equalsIgnoreCase("seasonalFrequency"),
+            "\"output\" should be \"fittedSeries\", or \"forecast\"",
+            validator.getParameters().getStringOrDefault("output", "fittedSeries"));
   }
 
   @Override
@@ -103,7 +107,7 @@ public class UDTFSARIMA implements UDTF {
     Q = parameters.getInt("Q");
     D = parameters.getInt("D");
     steps = parameters.getIntOrDefault("steps", 1);
-    output = parameters.getStringOrDefault("output", "coefficient");
+    output = parameters.getStringOrDefault("output", "fittedSeries");
   }
 
   @Override
@@ -124,7 +128,7 @@ public class UDTFSARIMA implements UDTF {
     if (output.equalsIgnoreCase("fittedSeries")) {
       double[] fittedSeries = model.fittedSeries().asArray();
       for (int i = 0; i < fittedSeries.length; i++) {
-        collector.putDouble(i, fittedSeries[i]);
+        collector.putDouble(time.get(i), fittedSeries[i]);
       }
     } else if (output.equalsIgnoreCase("forecast")) {
       Forecast forecast = model.forecast(steps);
@@ -134,21 +138,6 @@ public class UDTFSARIMA implements UDTF {
       for (int i = 0; i < forecast_series.length; i++) {
         collector.putDouble(i + last_timestamp + 1, forecast_series[i]);
       }
-      last_timestamp += forecast_series.length;
-
-      double[] lower_series = forecast.lowerPredictionInterval().asArray();
-      for (int i = 0; i < lower_series.length; i++) {
-        collector.putDouble(i + last_timestamp + 1, lower_series[i]);
-      }
-      last_timestamp += lower_series.length;
-
-      double[] upper_series = forecast.upperPredictionInterval().asArray();
-      for (int i = 0; i < upper_series.length; i++) {
-        collector.putDouble(i + last_timestamp + 1, upper_series[i]);
-      }
-    } else if (output.equalsIgnoreCase("seasonalFrequency")) {
-      model.seasonalFrequency();
     }
-
   }
 }

@@ -83,10 +83,10 @@ public class UDTFRSI implements UDTF {
         positive = 0;
         negative = 0;
         Row row = rowWindow.getRow(i);
-        Row row2 = rowWindow.getRow((int) i - window - 1);
+        Row row2 = rowWindow.getRow(i - window - 1);
         cvalue1 = Util.getValueAsDouble(row2, 1);
         for (int j = 0; j < window; j++) {
-          row2 = rowWindow.getRow((int) i - window + j);
+          row2 = rowWindow.getRow(i - window + j);
           cvalue2 = Util.getValueAsDouble(row2, 1);
           if (cvalue2 - cvalue1 > 0) {
             positive += cvalue2 - cvalue1;

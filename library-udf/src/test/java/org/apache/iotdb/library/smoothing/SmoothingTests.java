@@ -62,8 +62,8 @@ public class SmoothingTests {
   }
 
   private static void createTimeSeries() throws MetadataException {
-    IoTDB.metaManager.setStorageGroup(new PartialPath("root.season"));
-    IoTDB.metaManager.createTimeseries(
+    IoTDB.schemaEngine.setStorageGroup(new PartialPath("root.season"));
+    IoTDB.schemaEngine.createTimeseries(
         new PartialPath("root.season.d1.s1"), // period=12
         TSDataType.DOUBLE,
         TSEncoding.PLAIN,

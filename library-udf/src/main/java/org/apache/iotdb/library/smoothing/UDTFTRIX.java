@@ -91,14 +91,14 @@ public class UDTFTRIX implements UDTF {
         ema6 = 0;
         Row row = rowWindow.getRow(i);
         for (int j = 0; j < window; j++) {
-          Row row2 = rowWindow.getRow((int) i - window + j);
+          Row row2 = rowWindow.getRow(i - window + j);
           cvalue1 = Util.getValueAsDouble(row2, 1);
           ema1 = (2.0 / (window + 1)) * ema1 + (1 - 2.0 / (window + 1)) * cvalue1;
           ema2 = (2.0 / (window + 1)) * ema2 + (1 - 2.0 / (window + 1)) * ema1;
           ema3 = (2.0 / (window + 1)) * ema3 + (1 - 2.0 / (window + 1)) * ema2;
         }
         for (int j = 0; j < window; j++) {
-          Row row3 = rowWindow.getRow((int) i - 1 - window + j);
+          Row row3 = rowWindow.getRow(i - 1 - window + j);
           cvalue1 = Util.getValueAsDouble(row3, 1);
           ema4 = (2.0 / (window + 1)) * ema4 + (1 - 2.0 / (window + 1)) * cvalue1;
           ema5 = (2.0 / (window + 1)) * ema5 + (1 - 2.0 / (window + 1)) * ema4;

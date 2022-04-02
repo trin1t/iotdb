@@ -76,7 +76,7 @@ public class UDTFEMA implements UDTF {
         ema = 0;
         Row row = rowWindow.getRow(i);
         for (int j = 0; j < window; j++) {
-          Row row2 = rowWindow.getRow((int) i - window + j);
+          Row row2 = rowWindow.getRow(i - window + j);
           cvalue = Util.getValueAsDouble(row2, 1);
           ema = (2.0 / (window + 1)) * ema + (1 - 2.0 / (window + 1)) * cvalue;
         }

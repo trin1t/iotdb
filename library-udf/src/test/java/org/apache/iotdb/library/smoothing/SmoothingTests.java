@@ -157,15 +157,11 @@ public class SmoothingTests {
   private static void registerUDF() {
     try (Connection connection = EnvFactory.getEnv().getConnection();
         Statement statement = connection.createStatement()) {
-      statement.execute(
-          "create function ema as 'org.apache.iotdb.library.smoothing.UDTFDEMA'");
+      statement.execute("create function ema as 'org.apache.iotdb.library.smoothing.UDTFDEMA'");
       statement.execute("create function dema as 'org.apache.iotdb.library.smoothing.UDTFDEMA'");
-      statement.execute(
-          "create function TEMA as 'org.apache.iotdb.library.smoothing.UDTFTEMA'");
-      statement.execute(
-              "create function RSI as 'org.apache.iotdb.library.smoothing.UDTFRSI'");
-      statement.execute(
-              "create function TRIX as 'org.apache.iotdb.library.smoothing.UDTFTRIX'");
+      statement.execute("create function TEMA as 'org.apache.iotdb.library.smoothing.UDTFTEMA'");
+      statement.execute("create function RSI as 'org.apache.iotdb.library.smoothing.UDTFRSI'");
+      statement.execute("create function TRIX as 'org.apache.iotdb.library.smoothing.UDTFTRIX'");
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }
@@ -189,7 +185,7 @@ public class SmoothingTests {
       resultSet.next();
       while (resultSet.next()) {
         double result1 = resultSet.getDouble(1);
-        Assert.assertTrue(Math.abs(result1)<5.0);
+        Assert.assertTrue(Math.abs(result1) < 5.0);
       }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
@@ -205,7 +201,7 @@ public class SmoothingTests {
       resultSet.next();
       while (resultSet.next()) {
         double result1 = resultSet.getDouble(1);
-        Assert.assertTrue(Math.abs(result1)<3.6);
+        Assert.assertTrue(Math.abs(result1) < 3.6);
       }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
@@ -221,7 +217,7 @@ public class SmoothingTests {
       resultSet.next();
       while (resultSet.next()) {
         double result1 = resultSet.getDouble(1);
-        Assert.assertTrue(Math.abs(result1)<3.1);
+        Assert.assertTrue(Math.abs(result1) < 3.1);
       }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
@@ -232,12 +228,12 @@ public class SmoothingTests {
   public void testTRIX1() {
     String sqlStr = "select trix(d1.s1,'window'='12') from root.season";
     try (Connection connection = EnvFactory.getEnv().getConnection();
-         Statement statement = connection.createStatement()) {
+        Statement statement = connection.createStatement()) {
       ResultSet resultSet = statement.executeQuery(sqlStr);
       resultSet.next();
       while (resultSet.next()) {
         double result1 = resultSet.getDouble(1);
-        Assert.assertTrue(Math.abs(result1)<5);
+        Assert.assertTrue(Math.abs(result1) < 5);
       }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
@@ -248,12 +244,12 @@ public class SmoothingTests {
   public void testRSI1() {
     String sqlStr = "select rsi(d1.s1,'window'='12') from root.season";
     try (Connection connection = EnvFactory.getEnv().getConnection();
-         Statement statement = connection.createStatement()) {
+        Statement statement = connection.createStatement()) {
       ResultSet resultSet = statement.executeQuery(sqlStr);
       resultSet.next();
       while (resultSet.next()) {
         double result1 = resultSet.getDouble(1);
-        Assert.assertTrue(Math.abs(result1)<5);
+        Assert.assertTrue(Math.abs(result1) < 5);
       }
     } catch (SQLException throwable) {
       fail(throwable.getMessage());

@@ -44,21 +44,21 @@ public class UDTFTEMA implements UDTF {
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
-            .validateInputSeriesNumber(1)
-            .validateInputSeriesDataType(
-                    0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
-            .validate(
-                    window -> (int) window >= 1,
-                    "\"window\" should be an integer greater than one.",
-                    validator.getParameters().getInt("window"));
+        .validateInputSeriesNumber(1)
+        .validateInputSeriesDataType(
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
+        .validate(
+            window -> (int) window >= 1,
+            "\"window\" should be an integer greater than one.",
+            validator.getParameters().getInt("window"));
   }
 
   @Override
   public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-          throws Exception {
+      throws Exception {
     configurations
-            .setAccessStrategy(new RowByRowAccessStrategy())
-            .setOutputDataType(TSDataType.DOUBLE);
+        .setAccessStrategy(new RowByRowAccessStrategy())
+        .setOutputDataType(TSDataType.DOUBLE);
     window = parameters.getInt("window");
     cvalue1 = 0;
     ema1 = 0;
@@ -72,26 +72,23 @@ public class UDTFTEMA implements UDTF {
   public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
     n = rowWindow.windowSize();
     if (window < n) {
-      for(int i=0;i<window;i++)
-      {
+      for (int i = 0; i < window; i++) {
         Row row = rowWindow.getRow(i);
-        Util.putValue(collector, dataType, row.getTime(),Double.NaN);
+        Util.putValue(collector, dataType, row.getTime(), Double.NaN);
       }
-      for (int i = window; i < n; i++)
-      {
-        ema1=0;
-        ema2=0;
-        ema3=0;
+      for (int i = window; i < n; i++) {
+        ema1 = 0;
+        ema2 = 0;
+        ema3 = 0;
         Row row = rowWindow.getRow(i);
-        for (int j=0;j<window;j++)
-        {
-          Row row2 = rowWindow.getRow((int) i-window+j);
-          cvalue1=Util.getValueAsDouble(row2, 1);
-          ema1=(2.0/(window+1))*ema1+(1-2.0/(window+1))*cvalue1;
-          ema2=(2.0/(window+1))*ema2+(1-2.0/(window+1))*ema1;
-          ema3=(2.0/(window+1))*ema3+(1-2.0/(window+1))*ema2;
+        for (int j = 0; j < window; j++) {
+          Row row2 = rowWindow.getRow((int) i - window + j);
+          cvalue1 = Util.getValueAsDouble(row2, 1);
+          ema1 = (2.0 / (window + 1)) * ema1 + (1 - 2.0 / (window + 1)) * cvalue1;
+          ema2 = (2.0 / (window + 1)) * ema2 + (1 - 2.0 / (window + 1)) * ema1;
+          ema3 = (2.0 / (window + 1)) * ema3 + (1 - 2.0 / (window + 1)) * ema2;
         }
-        Util.putValue(collector, dataType, row.getTime(), 3*ema1-3*ema2+ema3);
+        Util.putValue(collector, dataType, row.getTime(), 3 * ema1 - 3 * ema2 + ema3);
       }
     }
   }

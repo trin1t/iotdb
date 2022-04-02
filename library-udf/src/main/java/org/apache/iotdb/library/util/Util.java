@@ -38,10 +38,10 @@ public class Util {
    * @param row data row
    * @param index the column index
    * @return value of specific column from Row
-   * @throws NoNumberException when getting a no number datatype
+   * @throws Exception when getting a no number datatype
    */
-  public static double getValueAsDouble(Row row, int index) throws NoNumberException, IOException {
-    double ans = 0;
+  public static double getValueAsDouble(Row row, int index) throws Exception {
+    double ans;
     switch (row.getDataType(index)) {
       case INT32:
         ans = row.getInt(index);
@@ -56,7 +56,7 @@ public class Util {
         ans = row.getDouble(index);
         break;
       default:
-        throw new NoNumberException();
+        throw new Exception();
     }
     return ans;
   }
@@ -66,9 +66,9 @@ public class Util {
    *
    * @param row data row
    * @return value from 0th column from Row
-   * @throws NoNumberException when getting a no number datatype
+   * @throws Exception when getting a no number datatype
    */
-  public static double getValueAsDouble(Row row) throws NoNumberException, IOException {
+  public static double getValueAsDouble(Row row) throws Exception {
     return getValueAsDouble(row, 0);
   }
 

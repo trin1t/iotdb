@@ -35,6 +35,13 @@ This function is used to calculate the convolution, i.e. polynomial multiplicati
 
 **Note:** `NaN` in the input series will be ignored.
 
+### Explanation
+
+Suppose we have two input discrete series, $x_i$ and $y_i$. The function calculates discrete convolution, i.e.
+$$
+z_i = \sum_{j=0}^i {x_j y_{i-j}}
+$$
+
 ### Examples
 
 Input series:
@@ -85,6 +92,14 @@ This function is used to calculate the deconvolution, i.e. polynomial division.
 **Output:** Output a single series. The type is DOUBLE. It is the result of deconvolving the second series from the first series (dividing the first series by the second series) whose timestamps starting from 0 only indicate the order.
 
 **Note:** `NaN` in the input series will be ignored.
+
+### Explanation
+
+Suppose we have two input discrete series, $z_i$ and $y_i$. The function finds discrete deconvolution, which satisfies
+$$
+z_i = r_i + \sum_{j=0}^i {q_j y_{i-j}}
+$$
+The quotient and remainder are calculated by long division.
 
 ### Examples
 
@@ -167,6 +182,14 @@ This function is used to calculate 1d discrete wavelet transform of a numerical 
 **Output:** Output a single series. The type is DOUBLE. The length is the same as the input.
 
 **Note:** The length of input series must be an integer number power of 2.
+
+### Explanation
+
+In wavelet analysis, the Discrete Wavelet Transform (DWT) decomposes a signal into a set of mutually orthogonal wavelet basis functions. These functions differ from sinusoidal basis functions (which is used in Fourier Transform) in that they are spatially localized – that is, nonzero over only part of the total signal length. Furthermore, wavelet functions are dilated, translated and scaled versions of a a common function, known as the mother wavelet. As is the case in Fourier analysis, the DWT is invertible.
+
+A 1D DWT process transforms the signal into a high frequency series through a high-pass filter, and a low frequency series through a low-pass filter. Therefore, DWT approximates to a band pass filter, which allows a signal, whose frequency is similar to that of wavelet, to pass. If you set the transformation layer over 1, the function transforms the low frequency signal iteratively. This will satisfy the need of high frequency resolution in low frequency domain, and high time resolution in high frequency domain.
+
+It is complicated to derivate filter coefficients. In this function, wavelet coefficients are the filter coefficients corresponding to the high-pass filter of DWT. Some classical wavelet coefficients are already preset.
 
 ### Examples
 
@@ -439,6 +462,30 @@ Output series:
 ```
 
 Note: The input is $y=sin(2\pi t/4)+2sin(2\pi t/5)$ with a length of 20. Thus, the output is $y=sin(2\pi t/4)$ after high-pass filtering.
+
+## IDWT
+
+### Usage
+
+This function is used to calculate 1d inverse discrete wavelet transform of a numerical series.
+
+**Name:** IDWT
+
+**Input:** Only support a single input series. The type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Parameters:**
+
++ `method`: The type of wavelet. May select 'Haar', 'DB4', 'DB6', 'DB8', where DB means Daubechies. User may offer coefficients of wavelet transform and ignore this parameter. Case ignored.
++ `coef`: Coefficients of wavelet transform. When providing this parameter, use comma ',' to split them, and leave no spaces or other punctuations.
++ `layer`: Times to transform. The number of output vectors equals $layer+1$. Default is 1.
+
+**Output:** Output a single series. The type is DOUBLE. The length is the same as the input.
+
+**Note:** The length of input series must be an integer number power of 2.
+
+### Explanation
+
+As introduced in DWT, DWT is invertible. This function transforms decomposed signals to original series. To denoise a series, you may first use DWT, then remove the noise signal, and use IDWT.
 
 ## IFFT
 

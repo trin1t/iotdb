@@ -1,3 +1,5 @@
+
+
 <!--
 
 ​    Licensed to the Apache Software Foundation (ASF) under one
@@ -39,6 +41,14 @@ This function is used to calculate the completeness of time series. The input se
 **Output Series:** Output a single series. The type is DOUBLE. The range of each value is [0,1].
 
 **Note:** Only when the number of data points in the window exceeds 10, the calculation will be performed. Otherwise, the window will be ignored and nothing will be output.
+
+### Explanation
+
+Data quality problems in completeness contain missing value, NaN value and special value (imputing missing or NaN value). This index is defined as
+$$
+Completeness = 1 - (N_{null} + N_{special} + N_{miss}) / (N + N_{miss})
+$$
+Here, $N$ is the total number of points; $N_{null}$ is the number of NaN points; $N_{special}$ is the number of special value points; $N_{miss}$ is the number of missing points.
 
 ### Examples
 
@@ -164,6 +174,14 @@ This function is used to calculate the consistency of time series. The input ser
 
 **Note:** Only when the number of data points in the window exceeds 10, the calculation will be performed. Otherwise, the window will be ignored and nothing will be output.
 
+### Explanation
+
+Data quality problems of consistency contain redundancy. The index is defined as
+$$
+Consistency = 1 - N_{redundancy} / N
+$$
+Here, $N$ is the number of total points; $N_{redundancy}$ is the number of redundant points.
+
 ### Examples
 
 #### Default Parameters
@@ -288,6 +306,14 @@ This function is used to calculate the timeliness of time series. The input seri
 
 **Note:** Only when the number of data points in the window exceeds 10, the calculation will be performed. Otherwise, the window will be ignored and nothing will be output.
 
+### Explanation
+
+Data quality problems of timeliness contain delayed points. The index is defined as
+$$
+Timeliness = 1 - N_{late} / N
+$$
+Here, $N$ is the number of total points; $N_{late}$ is the number of delayed points.
+
 ### Examples
 
 #### Default Parameters
@@ -411,6 +437,14 @@ This function is used to calculate the Validity of time series. The input series
 **Output Series:** Output a single series. The type is DOUBLE. The range of each value is [0,1].
 
 **Note:** Only when the number of data points in the window exceeds 10, the calculation will be performed. Otherwise, the window will be ignored and nothing will be output.
+
+### Explanation
+
+Data quality problems of validity contain exceeding threshold of value, speed, acceleration, and jerk. The index is defined as
+$$
+Validity = 1 - (N_{value} + N_{variation} + N_{speed} + N_{speedchange}) / (4 * N)
+$$
+Here, $N$ is the number of total points; $N_{value}$ is the number of points whose values exceed threshold; $N_{variation}$ is the number of points whose speed exceeds threshold; $N_{speed}$ is the number of points whose acceleration exceeds threshold; $N_{speedchange}$ is the number of points whose jerk exceeds threshold. A single point may be recognized to exceed multiple thresholds.
 
 ### Examples
 

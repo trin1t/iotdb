@@ -18,14 +18,14 @@
  */
 package org.apache.iotdb.db.utils;
 
+import org.apache.iotdb.commons.exception.IoTDBException;
 import org.apache.iotdb.db.conf.OperationType;
 import org.apache.iotdb.db.exception.BatchProcessException;
-import org.apache.iotdb.db.exception.IoTDBException;
 import org.apache.iotdb.db.exception.QueryInBatchStatementException;
 import org.apache.iotdb.db.exception.StorageGroupNotReadyException;
 import org.apache.iotdb.db.exception.query.QueryProcessException;
 import org.apache.iotdb.db.exception.query.QueryTimeoutRuntimeException;
-import org.apache.iotdb.db.exception.runtime.SQLParserException;
+import org.apache.iotdb.db.exception.sql.SQLParserException;
 import org.apache.iotdb.rpc.RpcUtils;
 import org.apache.iotdb.rpc.TSStatusCode;
 import org.apache.iotdb.service.rpc.thrift.TSStatus;
@@ -56,9 +56,9 @@ public class ErrorHandlingUtils {
       Exception e, String operation, TSStatusCode statusCode) {
     String message = String.format("[%s] Exception occurred: %s failed. ", statusCode, operation);
     if (e instanceof IOException || e instanceof NullPointerException) {
-      LOGGER.error("Status code: {}, operation: {} failed", statusCode, operation, e);
+      LOGGER.error("Status code: " + statusCode + ", operation: " + operation + " failed", e);
     } else {
-      LOGGER.warn("Status code: {}, operation: {} failed", statusCode, operation, e);
+      LOGGER.warn("Status code: " + statusCode + ", operation: " + operation + " failed", e);
     }
     return RpcUtils.getStatus(statusCode, message + e.getMessage());
   }
@@ -80,7 +80,8 @@ public class ErrorHandlingUtils {
     if (status != null) {
       // ignore logging sg not ready exception
       if (status.getCode() != TSStatusCode.STORAGE_GROUP_NOT_READY.getStatusCode()) {
-        LOGGER.error("Status code: {}, Query Statement: {} failed", status.getCode(), operation, e);
+        LOGGER.error(
+            "Status code: " + status.getCode() + ", Query Statement: " + operation + " failed", e);
       }
       return status;
     } else {
@@ -101,29 +102,22 @@ public class ErrorHandlingUtils {
 
     Throwable t = e instanceof ExecutionException ? e.getCause() : e;
     if (t instanceof QueryTimeoutRuntimeException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(t.getMessage(), t);
       return RpcUtils.getStatus(TSStatusCode.TIME_OUT, rootCause.getMessage());
     } else if (t instanceof ParseCancellationException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_PARSING_SQL_ERROR, t);
       return RpcUtils.getStatus(
           TSStatusCode.SQL_PARSE_ERROR, INFO_PARSING_SQL_ERROR + rootCause.getMessage());
     } else if (t instanceof SQLParserException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_CHECK_METADATA_ERROR, t);
       return RpcUtils.getStatus(
           TSStatusCode.METADATA_ERROR, INFO_CHECK_METADATA_ERROR + rootCause.getMessage());
     } else if (t instanceof QueryProcessException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_QUERY_PROCESS_ERROR, t);
       return RpcUtils.getStatus(
           TSStatusCode.QUERY_PROCESS_ERROR, INFO_QUERY_PROCESS_ERROR + rootCause.getMessage());
     } else if (t instanceof QueryInBatchStatementException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_NOT_ALLOWED_IN_BATCH_ERROR, t);
       return RpcUtils.getStatus(
           TSStatusCode.QUERY_NOT_ALLOWED, INFO_NOT_ALLOWED_IN_BATCH_ERROR + rootCause.getMessage());
     } else if (t instanceof IoTDBException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_QUERY_PROCESS_ERROR, t);
       return RpcUtils.getStatus(((IoTDBException) t).getErrorCode(), rootCause.getMessage());
     } else if (t instanceof TsFileRuntimeException) {
-      DETAILED_FAILURE_QUERY_TRACE_LOGGER.warn(INFO_QUERY_PROCESS_ERROR, t);
       return RpcUtils.getStatus(TSStatusCode.TSFILE_PROCESSOR_ERROR, rootCause.getMessage());
     }
     return null;
@@ -156,11 +150,7 @@ public class ErrorHandlingUtils {
       Throwable rootCause = getRootCause(e);
       // ignore logging sg not ready exception
       if (!(rootCause instanceof StorageGroupNotReadyException)) {
-        if (((IoTDBException) e).isUserException()) {
-          LOGGER.warn(message + e.getMessage());
-        } else {
-          LOGGER.warn(message, e);
-        }
+        LOGGER.warn(message, e);
       }
       return RpcUtils.getStatus(((IoTDBException) e).getErrorCode(), rootCause.getMessage());
     }
@@ -172,7 +162,7 @@ public class ErrorHandlingUtils {
     String message =
         String.format(
             "[%s] Exception occurred: %s failed. %s", statusCode, operation, e.getMessage());
-    LOGGER.warn("Status code: {}, operation: {} failed", statusCode, operation, e);
+    LOGGER.warn("Status code: " + statusCode + ", operation: " + operation + " failed", e);
     return RpcUtils.getStatus(errorCode, message);
   }
 

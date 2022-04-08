@@ -18,11 +18,11 @@
  */
 package org.apache.iotdb.session;
 
-import org.apache.iotdb.db.conf.IoTDBConstant;
+import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
 import org.apache.iotdb.db.conf.OperationType;
 import org.apache.iotdb.db.exception.metadata.MetadataException;
-import org.apache.iotdb.db.metadata.MManager;
+import org.apache.iotdb.db.metadata.LocalSchemaProcessor;
 import org.apache.iotdb.db.metadata.mnode.IMeasurementMNode;
 import org.apache.iotdb.db.metadata.path.PartialPath;
 import org.apache.iotdb.db.utils.EnvironmentUtils;
@@ -332,7 +332,7 @@ public class IoTDBSessionSimpleIT {
     assertTrue(session.checkTimeseriesExists("root.sg1.d1.s1"));
     assertTrue(session.checkTimeseriesExists("root.sg1.d1.s2"));
     IMeasurementMNode mNode =
-        MManager.getInstance().getMeasurementMNode(new PartialPath("root.sg1.d1.s1"));
+        LocalSchemaProcessor.getInstance().getMeasurementMNode(new PartialPath("root.sg1.d1.s1"));
     assertNull(mNode.getSchema().getProps());
 
     session.close();
@@ -395,7 +395,6 @@ public class IoTDBSessionSimpleIT {
     schemaList.add(new MeasurementSchema("s3", TSDataType.TEXT));
 
     Tablet tablet = new Tablet("root.sg1.d1", schemaList);
-    tablet.setAligned(true);
     long timestamp = System.currentTimeMillis();
 
     for (long row = 0; row < 10; row++) {
@@ -471,6 +470,48 @@ public class IoTDBSessionSimpleIT {
       for (Field field : rowRecord.getFields()) {
         Assert.assertEquals(9L, field.getLongV());
       }
+    }
+    session.close();
+  }
+
+  @Test
+  public void testInsertTabletWithStringValues()
+      throws IoTDBConnectionException, StatementExecutionException {
+    session = new Session("127.0.0.1", 6667, "root", "root");
+    session.open();
+    List<MeasurementSchema> schemaList = new ArrayList<>();
+    schemaList.add(new MeasurementSchema("s0", TSDataType.DOUBLE, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s1", TSDataType.FLOAT, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s2", TSDataType.INT64, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s3", TSDataType.INT32, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s4", TSDataType.BOOLEAN, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s5", TSDataType.TEXT, TSEncoding.RLE));
+    schemaList.add(new MeasurementSchema("s6", TSDataType.TEXT, TSEncoding.RLE));
+
+    Tablet tablet = new Tablet("root.sg1.d1", schemaList);
+    for (long time = 0; time < 10; time++) {
+      int rowIndex = tablet.rowSize++;
+      tablet.addTimestamp(rowIndex, time);
+
+      tablet.addValue(schemaList.get(0).getMeasurementId(), rowIndex, (double) time);
+      tablet.addValue(schemaList.get(1).getMeasurementId(), rowIndex, (float) time);
+      tablet.addValue(schemaList.get(2).getMeasurementId(), rowIndex, time);
+      tablet.addValue(schemaList.get(3).getMeasurementId(), rowIndex, (int) time);
+      tablet.addValue(schemaList.get(4).getMeasurementId(), rowIndex, time % 2 == 0);
+      tablet.addValue(schemaList.get(5).getMeasurementId(), rowIndex, new Binary("Text" + time));
+      tablet.addValue(schemaList.get(6).getMeasurementId(), rowIndex, "Text" + time);
+    }
+
+    if (tablet.rowSize != 0) {
+      session.insertTablet(tablet);
+      tablet.reset();
+    }
+
+    SessionDataSet dataSet = session.executeQueryStatement("select * from root.sg1.d1");
+    while (dataSet.hasNext()) {
+      RowRecord rowRecord = dataSet.next();
+      List<Field> fields = rowRecord.getFields();
+      Assert.assertEquals(fields.get(5).getBinaryV(), fields.get(6).getBinaryV());
     }
     session.close();
   }
@@ -1064,7 +1105,10 @@ public class IoTDBSessionSimpleIT {
           tsDataTypes,
           tsEncodings,
           compressionTypes,
-          Arrays.asList("alias1", "alias2", "alias3"));
+          Arrays.asList("alias1", "alias2", "alias3"),
+          null,
+          null);
+
       fail("Exception expected");
     } catch (StatementExecutionException e) {
       assertTrue(
@@ -1266,7 +1310,6 @@ public class IoTDBSessionSimpleIT {
     schemaList.add(new MeasurementSchema("x", TSDataType.FLOAT));
     schemaList.add(new MeasurementSchema("y", TSDataType.FLOAT));
     Tablet tablet = new Tablet("root.sg.loc1.sector", schemaList);
-    tablet.setAligned(true);
 
     long timestamp = System.currentTimeMillis();
 

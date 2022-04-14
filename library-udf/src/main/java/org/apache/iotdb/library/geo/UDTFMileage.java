@@ -54,7 +54,7 @@ public class UDTFMileage implements UDTF {
         .validate(
             x -> EnumUtils.isValidEnumIgnoreCase(UserInputLengthUnit.class, (String) x),
             "Parameter $unit$ should be within {m, km, ft, mi, nm}.",
-            validator.getParameters().getIntOrDefault("lag", 0));
+            validator.getParameters().getStringOrDefault("unit", "km"));
   }
 
   @Override

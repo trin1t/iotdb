@@ -50,8 +50,8 @@ public class UDAFArea implements UDTF {
         .validateInputSeriesDataType(1, TSDataType.DOUBLE, TSDataType.FLOAT)
         .validate(
             x -> EnumUtils.isValidEnumIgnoreCase(UserInputAreaUnit.class, (String) x),
-            "Parameter $unit$ should be within {m, km, ft, mi, nm}.",
-            validator.getParameters().getIntOrDefault("lag", 0));
+            "Parameter $unit$ should be within {m2, km2, sqmi, sqft, acre}.",
+            validator.getParameters().getStringOrDefault("unit", "km2"));
   }
 
   @Override

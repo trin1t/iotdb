@@ -93,7 +93,7 @@ public class UDAFArea implements UDTF {
   }
 
   private double area(ArrayList<Double> lats, ArrayList<Double> lons) {
-    final double surfaceArea = 5.10072E14;
+    final double surfaceArea = 5.10072E8;
     double sum = 0;
     double prevcolat = 0;
     double prevaz = 0;

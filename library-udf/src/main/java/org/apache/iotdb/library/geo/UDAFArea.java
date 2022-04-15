@@ -38,7 +38,7 @@ import java.util.Locale;
 
 /** This function calculates the area of a polygon with GPS positions. */
 public class UDAFArea implements UDTF {
-  private ArrayList<Double> longtitude;
+  private ArrayList<Double> longitude;
   private ArrayList<Double> latitude;
   private AreaUnit unit;
 
@@ -60,7 +60,7 @@ public class UDAFArea implements UDTF {
     configurations
         .setAccessStrategy(new RowByRowAccessStrategy())
         .setOutputDataType(TSDataType.DOUBLE);
-    longtitude = new ArrayList<>();
+    longitude = new ArrayList<>();
     latitude = new ArrayList<>();
     unit =
         UserInputAreaUnit.valueOf(
@@ -78,7 +78,7 @@ public class UDAFArea implements UDTF {
       double lon = Util.getValueAsDouble(row, 1);
       if (lat >= -180.0 && lat <= 180.0 && lon >= -90.0 && lon <= 90.0) {
         latitude.add(lat);
-        longtitude.add(lon);
+        longitude.add(lon);
       }
     }
   }
@@ -86,7 +86,7 @@ public class UDAFArea implements UDTF {
   @Override
   public void terminate(PointCollector collector) throws Exception {
     if (latitude.size() >= 3) {
-      double area = area(latitude, longtitude);
+      double area = area(latitude, longitude);
       area = AreaUnit.km2.convert(unit, area);
       collector.putDouble(0, area);
     }

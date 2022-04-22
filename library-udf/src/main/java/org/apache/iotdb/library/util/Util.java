@@ -27,6 +27,7 @@ import org.eclipse.collections.api.tuple.primitive.LongIntPair;
 import org.eclipse.collections.impl.map.mutable.primitive.LongIntHashMap;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 
 /** This class offers functions of getting and putting values from iotdb interface. */
@@ -58,6 +59,29 @@ public class Util {
       default:
         throw new NoNumberException();
     }
+    return ans;
+  }
+
+  public static BigDecimal getValueAsBigDecimal(Row row, int index)
+      throws NoNumberException, IOException {
+    BigDecimal ans;
+    switch (row.getDataType(index)) {
+      case INT32:
+        ans = BigDecimal.valueOf(row.getInt(index));
+        break;
+      case INT64:
+        ans = BigDecimal.valueOf(row.getLong(index));
+        break;
+      case FLOAT:
+        ans = BigDecimal.valueOf(row.getFloat(index));
+        break;
+      case DOUBLE:
+        ans = BigDecimal.valueOf(row.getDouble(index));
+        break;
+      default:
+        throw new NoNumberException();
+    }
+    ans = ans.setScale(2, BigDecimal.ROUND_HALF_UP);
     return ans;
   }
 

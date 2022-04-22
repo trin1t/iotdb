@@ -340,3 +340,32 @@ select valuerepair(s1,'method'='LsGreedy') from root.test.d2
 |2020-01-01T00:00:30.000+08:00|                                            128.0|
 +-----------------------------+-------------------------------------------------+
 ```
+
+
+
+## MasterRepair
+
+### 函数简介
+
+本函数实现基于主数据的多维时间序列数据修复。
+
+**函数名：**MasterRepair
+
+**输入序列：** 支持多个输入序列，类型为 INT32 / INT64 / FLOAT / DOUBLE。
+
+**参数：**
+
+- column_number: 原始数据序列个数
+- column_position: 目标输出序列序号
+- method: 修复方法选择
+
+- output: 指示输出序列。可选：repair_result, repair_log, dirty_tuples, data_info等。默认为 repair_result 。
+
+**输出序列：**输出单个序列，类型为String或Double，输出序列可以为：
+
+- 修复结果
+
+- 修复日志
+
+- 脏数据元组
+- 数据质量信息

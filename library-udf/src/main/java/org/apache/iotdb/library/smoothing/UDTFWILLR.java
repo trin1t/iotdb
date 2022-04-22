@@ -21,30 +21,32 @@ package org.apache.iotdb.library.smoothing;
 
 import org.apache.iotdb.db.query.udf.api.UDTF;
 import org.apache.iotdb.db.query.udf.api.access.Row;
+import org.apache.iotdb.db.query.udf.api.access.RowWindow;
 import org.apache.iotdb.db.query.udf.api.collector.PointCollector;
 import org.apache.iotdb.db.query.udf.api.customizer.config.UDTFConfigurations;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameterValidator;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrategy;
+import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
-import org.eclipse.collections.impl.list.mutable.primitive.DoubleArrayList;
+/** Double Exponential Moving Average */
+public class UDTFWILLR implements UDTF {
 
-import java.util.HashMap;
-
-/** RANK */
-public class UDTFRANK implements UDTF {
-
+  private int window = 0;
+  private int n = 0;
   private TSDataType dataType;
-  public static HashMap<Double, Long> doubleDic;
-  private DoubleArrayList doubleArrayList;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
         .validateInputSeriesNumber(1)
         .validateInputSeriesDataType(
-            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
+        .validate(
+            window -> (int) window >= 1,
+            "\"window\" should be an integer greater than one.",
+            validator.getParameters().getInt("window"));
   }
 
   @Override
@@ -53,28 +55,49 @@ public class UDTFRANK implements UDTF {
     configurations
         .setAccessStrategy(new RowByRowAccessStrategy())
         .setOutputDataType(TSDataType.DOUBLE);
-
+    window = parameters.getInt("window");
     dataType = parameters.getDataType(0);
-    doubleDic = new HashMap<>();
-    doubleArrayList = new DoubleArrayList();
   }
 
   @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
-    double vd = row.getDouble(0);
-    if (Double.isFinite(vd)) {
-      doubleArrayList.add(vd);
+  public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
+    n = rowWindow.windowSize();
+    if (window < n) {
+      double min, max, tmp, res;
+      int i;
+      Row row = rowWindow.getRow(0);
+      min = Util.getValueAsDouble(row, 1);
+      max = Util.getValueAsDouble(row, 1);
+      for (i = 0; i < window; i++) {
+        row = rowWindow.getRow(i);
+        tmp = Util.getValueAsDouble(row, 1);
+        if (tmp < min) {
+          min = tmp;
+        }
+        if (tmp > max) {
+          max = tmp;
+        }
+        Util.putValue(collector, dataType, row.getTime(), Double.NaN);
+      }
+      for (i = window; i < n; i++) {
+        row = rowWindow.getRow(i);
+        tmp = Util.getValueAsDouble(row, 1);
+        res = (max - tmp) * 100 / (max - min);
+        Util.putValue(collector, dataType, row.getTime(), res);
+        if (tmp < min) {
+          min = tmp;
+        }
+        if (tmp > max) {
+          max = tmp;
+        }
+      }
     }
-    doubleDic.put(row.getDouble(0), row.getTime());
   }
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    doubleArrayList.sortThis();
-    for (int i = 0; i < doubleArrayList.size(); i++) {
-      double value = doubleArrayList.get(i);
-      long time = doubleDic.getOrDefault(value, 0L);
-      collector.putDouble(time, i * 1.0 / (doubleArrayList.size() - 1));
+    if (n == 0) {
+      collector.putDouble(0, Double.NaN);
     }
   }
 }

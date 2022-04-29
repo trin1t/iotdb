@@ -32,8 +32,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
-/** This function transfers data into anomaly, which means departure from average. */
-public class UDTFDeparture implements UDTF {
+/** This function calculates the average of some value in history. */
+public class UDTFHistroryAverage implements UDTF {
   private ArrayList<Double> value;
   private ArrayList<Long> timestamp;
   private HashMap<Integer, Double> acc;
@@ -109,8 +109,7 @@ public class UDTFDeparture implements UDTF {
       }
       for (int i = 0; i < value.size(); i++) {
         date.setTime(timestamp.get(i));
-        collector.putDouble(
-            timestamp.get(i), value.get(i) - mean.get(Integer.parseInt(ft.format(date))));
+        collector.putDouble(timestamp.get(i), mean.get(Integer.parseInt(ft.format(date))));
       }
     } else if (aggr.equalsIgnoreCase("d")) {
       SimpleDateFormat ft = new SimpleDateFormat("MMdd");
@@ -125,8 +124,7 @@ public class UDTFDeparture implements UDTF {
       for (int i = 0; i < value.size(); i++) {
         date.setTime(timestamp.get(i));
         if (count.get(i) > 0) {
-          collector.putDouble(
-              timestamp.get(i), value.get(i) - mean.get(Integer.parseInt(ft.format(date))));
+          collector.putDouble(timestamp.get(i), mean.get(Integer.parseInt(ft.format(date))));
         }
       }
     }

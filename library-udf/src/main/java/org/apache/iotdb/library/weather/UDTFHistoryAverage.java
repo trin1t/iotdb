@@ -24,6 +24,7 @@ import org.apache.iotdb.db.query.udf.api.collector.PointCollector;
 import org.apache.iotdb.db.query.udf.api.customizer.config.UDTFConfigurations;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameterValidator;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameters;
+import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
@@ -33,12 +34,12 @@ import java.util.Date;
 import java.util.HashMap;
 
 /** This function calculates the average of some value in history. */
-public class UDTFHistroryAverage implements UDTF {
-  private ArrayList<Double> value;
-  private ArrayList<Long> timestamp;
-  private HashMap<Integer, Double> acc;
-  private HashMap<Integer, Integer> count;
-  private HashMap<Integer, Double> mean;
+public class UDTFHistoryAverage implements UDTF {
+  private ArrayList<Double> value = new ArrayList<>();
+  private ArrayList<Long> timestamp = new ArrayList<>();
+  private HashMap<Integer, Double> acc = new HashMap<>();
+  private HashMap<Integer, Integer> count = new HashMap<>();
+  private HashMap<Integer, Double> mean = new HashMap<>();
   private String aggr;
 
   @Override
@@ -56,12 +57,10 @@ public class UDTFHistroryAverage implements UDTF {
   @Override
   public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
       throws Exception {
+    configurations
+        .setAccessStrategy(new RowByRowAccessStrategy())
+        .setOutputDataType(TSDataType.DOUBLE);
     aggr = parameters.getStringOrDefault("aggr", "m");
-    value = new ArrayList<>();
-    timestamp = new ArrayList<>();
-    acc = new HashMap<>();
-    count = new HashMap<>();
-    mean = new HashMap<>();
     if (aggr.equalsIgnoreCase("m")) {
       for (int m = 1; m <= 12; m++) {
         for (int d = 1; d <= 31; d++) {

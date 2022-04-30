@@ -19,31 +19,27 @@
 
 -->
 
-# 气象统计
-
+# Climate Statistics
 
 ## Departure
 
-### 函数简介
+### Usage
 
-本函数用于计算原序列的距平。
+This function is used to calculate the departure from average (anomaly) of input series.
 
-**函数名：** Depature
+**Name:** Departure
 
-**输入序列：** 仅支持单个输入序列，类型为 INT32 / INT64 / FLOAT / DOUBLE.
+**Input Series:** Only support two input series. The types are both INT32 / INT64 / FLOAT / DOUBLE.
 
-**输出序列：** 单个输出序列，类型为 DOUBLE.
+**Output Series:** Output a single series. The type is DOUBLE.
 
-**参数：**
+**Parameters:**
 
-+ `aggr`: 计算的粒度，输入 "m" 以月为粒度，输入 "d" 以日为粒度。
++ `aggr`: Granularity for calculation. "m" for month, and "d" for day.
 
-**输出序列：** 输出单个序列，类型为 DOUBLE。
+### Examples
 
-### 使用示例
-
-
-输入序列：
+Input series:
 
 ```
 +-----------------------------+--------------------------+
@@ -112,14 +108,12 @@
 +-----------------------------+--------------------------+
 ```
 
-用于查询的 SQL 语句：
-
+SQL for query:
 ```sql
 select departure(precipitation,'aggr'='m') from root.weather
 ```
 
-输出序列：
-
+Output series:
 ```
 +-----------------------------+-------------------------------------------------+
 |                         Time|departure(root.weather.precipitation, "aggr"="m")|
@@ -189,26 +183,23 @@ select departure(precipitation,'aggr'='m') from root.weather
 
 ## HistoryAvg
 
-### 函数简介
+### Usage
 
-本函数用于计算历史同期的均值。
+This function is used to calculate the historical average .
 
-**函数名：** HistoryAvg
+**Name:** HistoryAvg
 
-**输入序列：** 仅支持单个输入序列，类型为 INT32 / INT64 / FLOAT / DOUBLE.
+**Input Series:** Only support two input series. The types are both INT32 / INT64 / FLOAT / DOUBLE.
 
-**输出序列：** 单个输出序列，类型为 DOUBLE.
+**Output Series:** Output a single series. The type is DOUBLE.
 
-**参数：**
+**Parameters:**
 
-+ `aggr`: 计算的粒度，输入 "m" 以月为粒度，输入 "d" 以日为粒度。
++ `aggr`: Granularity for calculation. "m" for month, and "d" for day.
 
-**输出序列：** 输出单个序列，类型为 DOUBLE。
+### Examples
 
-### 使用示例
-
-
-输入序列：
+Input series:
 
 ```
 +-----------------------------+--------------------------+
@@ -277,14 +268,12 @@ select departure(precipitation,'aggr'='m') from root.weather
 +-----------------------------+--------------------------+
 ```
 
-用于查询的 SQL 语句：
-
+SQL for query:
 ```sql
 select HistoryAvg(precipitation,'aggr'='m') from root.weather limit 12
 ```
 
-输出序列：
-
+Output series:
 ```
 +-----------------------------+--------------------------------------------------+
 |                         Time|HistoryAvg(root.weather.precipitation, "aggr"="m")|

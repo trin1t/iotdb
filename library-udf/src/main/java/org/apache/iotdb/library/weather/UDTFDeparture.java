@@ -24,6 +24,7 @@ import org.apache.iotdb.db.query.udf.api.collector.PointCollector;
 import org.apache.iotdb.db.query.udf.api.customizer.config.UDTFConfigurations;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameterValidator;
 import org.apache.iotdb.db.query.udf.api.customizer.parameter.UDFParameters;
+import org.apache.iotdb.db.query.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
@@ -34,11 +35,11 @@ import java.util.HashMap;
 
 /** This function transfers data into anomaly, which means departure from average. */
 public class UDTFDeparture implements UDTF {
-  private ArrayList<Double> value;
-  private ArrayList<Long> timestamp;
-  private HashMap<Integer, Double> acc;
-  private HashMap<Integer, Integer> count;
-  private HashMap<Integer, Double> mean;
+  private ArrayList<Double> value = new ArrayList<>();
+  private ArrayList<Long> timestamp = new ArrayList<>();
+  private HashMap<Integer, Double> acc = new HashMap<>();
+  private HashMap<Integer, Integer> count = new HashMap<>();
+  private HashMap<Integer, Double> mean = new HashMap<>();
   private String aggr;
 
   @Override
@@ -56,25 +57,23 @@ public class UDTFDeparture implements UDTF {
   @Override
   public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
       throws Exception {
+    configurations
+        .setAccessStrategy(new RowByRowAccessStrategy())
+        .setOutputDataType(TSDataType.DOUBLE);
     aggr = parameters.getStringOrDefault("aggr", "m");
-    value = new ArrayList<>();
-    timestamp = new ArrayList<>();
-    acc = new HashMap<>();
-    count = new HashMap<>();
-    mean = new HashMap<>();
     if (aggr.equalsIgnoreCase("m")) {
+      for (int m = 1; m <= 12; m++) {
+        acc.put(m, 0d);
+        count.put(m, 0);
+        mean.put(m, 0d);
+      }
+    } else if (aggr.equalsIgnoreCase("d")) {
       for (int m = 1; m <= 12; m++) {
         for (int d = 1; d <= 31; d++) {
           acc.put(m * 100 + d, 0d);
           count.put(m * 100 + d, 0);
           mean.put(m * 100 + d, 0d);
         }
-      }
-    } else if (aggr.equalsIgnoreCase("d")) {
-      for (int d = 1; d <= 366; d++) {
-        acc.put(d, 0d);
-        count.put(d, 0);
-        mean.put(d, 0d);
       }
     }
   }

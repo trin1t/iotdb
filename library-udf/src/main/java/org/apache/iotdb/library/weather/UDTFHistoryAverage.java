@@ -63,17 +63,17 @@ public class UDTFHistoryAverage implements UDTF {
     aggr = parameters.getStringOrDefault("aggr", "m");
     if (aggr.equalsIgnoreCase("m")) {
       for (int m = 1; m <= 12; m++) {
+        acc.put(m, 0d);
+        count.put(m, 0);
+        mean.put(m, 0d);
+      }
+    } else if (aggr.equalsIgnoreCase("d")) {
+      for (int m = 1; m <= 12; m++) {
         for (int d = 1; d <= 31; d++) {
           acc.put(m * 100 + d, 0d);
           count.put(m * 100 + d, 0);
           mean.put(m * 100 + d, 0d);
         }
-      }
-    } else if (aggr.equalsIgnoreCase("d")) {
-      for (int d = 1; d <= 366; d++) {
-        acc.put(d, 0d);
-        count.put(d, 0);
-        mean.put(d, 0d);
       }
     }
   }

@@ -21,6 +21,63 @@
 
 # Climate Statistics
 
+## ACC
+
+### Usage
+
+This function is used to calculate the Anomaly Correlation Coefficient (ACC).
+
+**Name:** PEARSON
+
+**Input Series:** Only support three input series. Supported types are INT32 / INT64 / FLOAT / DOUBLE. The first series is the forecast series; the second series is the verifying series; the third series is the reference series.
+
+**Output Series:** Output a single series. The type is DOUBLE. There is only one data point in the series, whose timestamp is the last input timestamp and value is the Anomaly Correlation Coefficient.
+
+**Note:**
+
++ If a row contains missing points, null points or `NaN`, it will be ignored;
++ If all rows are ignored, `NaN` will be output.
+
+
+### Examples
+
+Input series:
+
+```
++-----------------------------+----------------+----------------+----------------+
+|                         Time|root.weather.for|root.weather.ver|root.weather.ref|
++-----------------------------+----------------+----------------+----------------+
+|2013-01-01T00:00:00.000+08:00|             5.0|             4.0|             4.0|
+|2013-02-01T00:00:00.000+08:00|             8.0|             6.0|             7.0|
+|2013-03-01T00:00:00.000+08:00|             2.0|             1.0|             2.0|
+|2013-04-01T00:00:00.000+08:00|             2.0|             5.0|             3.0|
+|2013-05-01T00:00:00.000+08:00|            65.0|            63.0|            63.0|
+|2013-06-01T00:00:00.000+08:00|            65.0|            63.0|            63.0|
+|2013-07-01T00:00:00.000+08:00|            61.0|            60.0|            57.0|
+|2013-08-01T00:00:00.000+08:00|            80.0|            23.0|            65.0|
+|2013-09-01T00:00:00.000+08:00|           100.0|           105.0|           113.0|
+|2013-10-01T00:00:00.000+08:00|            15.0|             3.0|            12.0|
+|2013-11-01T00:00:00.000+08:00|             6.0|             4.0|            10.0|
+|2013-12-01T00:00:00.000+08:00|            15.0|            15.0|            12.0|
++-----------------------------+----------------+----------------+----------------+
+```
+
+SQL for query:
+
+```sql
+select acc(for,ver,ref) from root.test.weather
+```
+
+Output series:
+
+```
++-----------------------------+---------------------------------------------------------+
+|                         Time|acc(root.weather.for, root.weather.ver, root.weather.ref)|
++-----------------------------+---------------------------------------------------------+
+|2013-12-01T00:00:00.000+08:00|                                      -0.5196317180485549|
++-----------------------------+---------------------------------------------------------+
+```
+
 ## Departure
 
 ### Usage

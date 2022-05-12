@@ -16,7 +16,6 @@ import java.util.List;
 
 public class UDTFMasterRepair implements UDTF {
   private MasterRepairUtil masterRepairUtil;
-  private int columnCnt;
   private int columnPos;
   private String method;
   private String output;
@@ -26,10 +25,6 @@ public class UDTFMasterRepair implements UDTF {
     validator
         .validateInputSeriesDataType(
             0, TSDataType.DOUBLE, TSDataType.FLOAT, TSDataType.INT32, TSDataType.INT64)
-        .validate(
-            columnCnt -> (int) columnCnt > 1,
-            "Parameter columnCnt should be larger than 1.",
-            validator.getParameters().getInt("column_number"))
         .validate(
             columnPos -> (int) columnPos > 0,
             "Parameter column_position should be larger than 1.",
@@ -42,7 +37,7 @@ public class UDTFMasterRepair implements UDTF {
       throws Exception {
     configurations.setAccessStrategy(new RowByRowAccessStrategy());
     List<TSDataType> dataTypes = parameters.getDataTypes();
-    columnCnt = parameters.getInt("column_number");
+    int columnCnt = parameters.getDataTypes().size();
     columnPos = parameters.getIntOrDefault("column_position", 1);
     masterRepairUtil = new MasterRepairUtil(dataTypes, columnCnt);
     method = parameters.getStringOrDefault("method", "master_repair");

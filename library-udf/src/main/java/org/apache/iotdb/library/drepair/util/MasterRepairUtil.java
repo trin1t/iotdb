@@ -438,57 +438,56 @@ public class MasterRepairUtil {
     }
   }
 
-    public ArrayList<Double> get_speed_constraint_result(ArrayList<Double> t_tuple,
-   Deque<ArrayList<Double>> value_window, Deque<Long> time_window) {
-      assert value_window.size() > 0;
-      ArrayList<ArrayList<Double>> v_window = dequeToArrayList(value_window);
-      assert time_window.size() > 0;
-      ArrayList<Long> t_window = dequeToArrayListLong(time_window);
+  //  public ArrayList<Double> get_speed_constraint_result(
+  //      ArrayList<Double> t_tuple, Deque<ArrayList<Double>> value_window, Deque<Long> time_window)
+  // {
+  //    assert value_window.size() > 0;
+  //    ArrayList<ArrayList<Double>> v_window = dequeToArrayList(value_window);
+  //    assert time_window.size() > 0;
+  //    ArrayList<Long> t_window = dequeToArrayListLong(time_window);
+  //
+  //    ArrayList<Double> min_diffs = new ArrayList<>();
+  //    ArrayList<Double> max_diffs = new ArrayList<>();
+  //    for (int k = 0; k < columnCnt; k++) {
+  //      min_diffs.add(Double.MAX_VALUE);
+  //      max_diffs.add(Double.MIN_VALUE);
+  //    }
+  //    for (int k = 0; k < columnCnt; k++) {
+  //      for (int i = 1; i < v_window.size() / 2 - 1; i++) {
+  //        double value_diff = v_window.get(i - 1).get(k) - v_window.get(i).get(k);
+  //        long time_diff = t_window.get(i - 1) - t_window.get(i);
+  //        double diff = value_diff / time_diff;
+  //        if (diff < min_diffs.get(k)) {
+  //          min_diffs.set(k, diff);
+  //        }
+  //        if (diff > max_diffs.get(k)) {
+  //          max_diffs.set(k, diff);
+  //        }
+  //      }
+  //    }
+  //  }
 
-      ArrayList<Double> min_diffs = new ArrayList<>();
-      ArrayList<Double> max_diffs = new ArrayList<>();
-      for (int k = 0; k < columnCnt; k++) {
-        min_diffs.add(Double.MAX_VALUE);
-        max_diffs.add(Double.MIN_VALUE);
-      }
-      for (int k = 0; k < columnCnt; k++) {
-        for (int i = 1; i < v_window.size() / 2 - 1; i ++) {
-          double value_diff = v_window.get(i - 1).get(k) - v_window.get(i).get(k);
-          long time_diff = t_window.get(i - 1) - t_window.get(i);
-          double diff = value_diff / time_diff;
-          if (diff < min_diffs.get(k)) {
-            min_diffs.set(k, diff);
-          }
-          if (diff > max_diffs.get(k)) {
-            max_diffs.set(k, diff);
-          }
-        }
-
-      }
-
-    }
-
-    public void speed_constraint() {
-      assert td.size() > WINDOW_SIZE;
-      Deque<ArrayList<Double>> value_window = new LinkedList<>();
-      assert td_time.size() > WINDOW_SIZE;
-      Deque<Long> time_window = new LinkedList<>();
-      for (int i = 0; i < WINDOW_SIZE - 1; i++) {
-        value_window.add(td.get(i));
-        time_window.add(td_time.get(i));
-      }
-      for (int i = WINDOW_SIZE / 2; i < td.size() - WINDOW_SIZE / 2 - 1; i++) {
-        ArrayList<Double> t_tuple = td.get(i);
-        value_window.add(td.get(i));
-        time_window.add(td_time.get(i));
-        if (value_window.size() > WINDOW_SIZE) {
-          value_window.poll();
-          time_window.poll();
-        }
-        //      ArrayList<Double> r_tuple = get_speed_constraint_result(t_tuple, value_window,
-        // time_window);
-      }
-    }
+  //  public void speed_constraint() {
+  //    assert td.size() > WINDOW_SIZE;
+  //    Deque<ArrayList<Double>> value_window = new LinkedList<>();
+  //    assert td_time.size() > WINDOW_SIZE;
+  //    Deque<Long> time_window = new LinkedList<>();
+  //    for (int i = 0; i < WINDOW_SIZE - 1; i++) {
+  //      value_window.add(td.get(i));
+  //      time_window.add(td_time.get(i));
+  //    }
+  //    for (int i = WINDOW_SIZE / 2; i < td.size() - WINDOW_SIZE / 2 - 1; i++) {
+  //      ArrayList<Double> t_tuple = td.get(i);
+  //      value_window.add(td.get(i));
+  //      time_window.add(td_time.get(i));
+  //      if (value_window.size() > WINDOW_SIZE) {
+  //        value_window.poll();
+  //        time_window.poll();
+  //      }
+  //      //      ArrayList<Double> r_tuple = get_speed_constraint_result(t_tuple, value_window,
+  //      // time_window);
+  //    }
+  //  }
 
   public ArrayList<Long> getDirty_tuple_time() {
     return dirty_tuple_time;

@@ -18,12 +18,6 @@
  */
 package org.apache.iotdb.library.weather;
 
-import static org.junit.Assert.fail;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
 import org.apache.iotdb.db.exception.metadata.MetadataException;
 import org.apache.iotdb.db.metadata.path.PartialPath;
@@ -33,11 +27,18 @@ import org.apache.iotdb.integration.env.EnvFactory;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import static org.junit.Assert.fail;
 
 public class WeatherTests {
   private static final float oldUdfCollectorMemoryBudgetInMB =
@@ -58,6 +59,7 @@ public class WeatherTests {
     generateData();
     registerUDF();
   }
+
   private static void createTimeSeries() throws MetadataException {
     IoTDB.schemaEngine.setStorageGroup(new PartialPath("root.vehicle"));
     IoTDB.schemaEngine.createTimeseries(

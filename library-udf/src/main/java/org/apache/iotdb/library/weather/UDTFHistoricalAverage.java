@@ -30,17 +30,22 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
 /** This function calculates the average of some value in history. */
-public class UDTFHistoryAverage implements UDTF {
+public class UDTFHistoricalAverage implements UDTF {
   private ArrayList<Double> value = new ArrayList<>();
   private ArrayList<Long> timestamp = new ArrayList<>();
   private HashMap<Integer, Double> acc = new HashMap<>();
   private HashMap<Integer, Integer> count = new HashMap<>();
   private HashMap<Integer, Double> mean = new HashMap<>();
   private String aggr;
+  private int period;
+  private int current_year;
+  private long start;
+  private long end;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
@@ -51,7 +56,24 @@ public class UDTFHistoryAverage implements UDTF {
         .validate(
             aggr -> ((String) aggr).equalsIgnoreCase("d") || ((String) aggr).equalsIgnoreCase("m"),
             "Parameter \"aggr\" should be \"d\" or \"m\"",
-            validator.getParameters().getStringOrDefault("aggr", "m"));
+            validator.getParameters().getStringOrDefault("aggr", "m"))
+        .validate(
+            period -> (int) period > 0,
+            "Parameter \"period\" should be positive integer",
+            validator.getParameters().getIntOrDefault("period", 5));
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    if (validator.getParameters().hasAttribute("start")) {
+      validator.validate(
+          start -> (long) start > 0,
+          "Parameter \"start\" should conform to the format yyyy-MM-dd HH:mm:ss.",
+          format.parse(validator.getParameters().getString("start")).getTime());
+    }
+    if (validator.getParameters().hasAttribute("end")) {
+      validator.validate(
+          end -> (long) end > 0,
+          "Parameter \"end\" should conform to the format yyyy-MM-dd HH:mm:ss.",
+          format.parse(validator.getParameters().getString("end")).getTime());
+    }
   }
 
   @Override
@@ -60,7 +82,6 @@ public class UDTFHistoryAverage implements UDTF {
     configurations
         .setAccessStrategy(new RowByRowAccessStrategy())
         .setOutputDataType(TSDataType.DOUBLE);
-    aggr = parameters.getStringOrDefault("aggr", "m");
     if (aggr.equalsIgnoreCase("m")) {
       for (int m = 1; m <= 12; m++) {
         acc.put(m, 0d);
@@ -76,25 +97,46 @@ public class UDTFHistoryAverage implements UDTF {
         }
       }
     }
+
+    period = parameters.getIntOrDefault("period", 5);
+
+    Calendar date = Calendar.getInstance();
+    current_year = date.get(Calendar.YEAR);
+
+    aggr = parameters.getStringOrDefault("aggr", "m");
+    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    start = 0;
+    if (parameters.hasAttribute("start")) {
+      start = format.parse(parameters.getString("start")).getTime();
+    }
+    end = new Date().getTime();
+    if (parameters.hasAttribute("end")) {
+      end = format.parse(parameters.getString("end")).getTime();
+    }
   }
 
   @Override
   public void transform(Row row, PointCollector collector) throws Exception {
+    long t = row.getTime();
     Double v = Util.getValueAsDouble(row);
-    value.add(v);
-    Date date = new Date();
-    date.setTime(row.getTime());
-    timestamp.add(row.getTime());
-    if (aggr.equalsIgnoreCase("m")) {
-      SimpleDateFormat ft = new SimpleDateFormat("MM");
-      Integer month = Integer.parseInt(ft.format(date));
-      acc.put(month, acc.get(month) + v);
-      count.put(month, count.get(month) + 1);
-    } else if (aggr.equalsIgnoreCase("d")) {
-      SimpleDateFormat ft = new SimpleDateFormat("MMdd");
-      Integer day = Integer.parseInt(ft.format(date));
-      acc.put(day, acc.get(day) + v);
-      count.put(day, count.get(day) + 1);
+    Date date = new Date(row.getTime());
+    if (t > start && t < end) {
+      if (aggr.equalsIgnoreCase("m")) {
+        SimpleDateFormat ft = new SimpleDateFormat("MM");
+        Integer month = Integer.parseInt(ft.format(date));
+        acc.put(month, acc.get(month) + v);
+        count.put(month, count.get(month) + 1);
+      } else if (aggr.equalsIgnoreCase("d")) {
+        SimpleDateFormat ft = new SimpleDateFormat("MMdd");
+        Integer day = Integer.parseInt(ft.format(date));
+        acc.put(day, acc.get(day) + v);
+        count.put(day, count.get(day) + 1);
+      }
+    }
+    int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
+    if (current_year - year <= period) {
+      value.add(v);
+      timestamp.add(row.getTime());
     }
   }
 

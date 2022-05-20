@@ -66,9 +66,11 @@ public class UDTFKNNRepair implements UDTF {
   public void terminate(PointCollector collector) throws Exception {
     switch (output) {
       case "repair_result_all":
+        long startTime = System.currentTimeMillis(); // 获取开始时间.
         knnRepairUtil.buildKDTree();
         knnRepairUtil.repair();
-        collector.putString(1, "success");
+        long endTime = System.currentTimeMillis(); // 获取结束时间.
+        collector.putString(1, String.valueOf(endTime - startTime));
         break;
       case "repair_result":
         knnRepairUtil.buildKDTree();

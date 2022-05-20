@@ -13,7 +13,7 @@ public class KnnRepairUtil {
   private final ArrayList<ArrayList<Double>> td_cleaned = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> md = new ArrayList<>();
   private final ArrayList<Long> td_time = new ArrayList<>();
-  private final int[] precision = new int[] {1, 1, 1};
+  private final int[] precision = new int[] {6, 6, 1};
   private int columnCnt;
   private KDTree kdTree;
 
@@ -39,7 +39,7 @@ public class KnnRepairUtil {
       if (!row.isNull(i)) {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
-        double test = bd.setScale(precision[i], BigDecimal.ROUND_DOWN).doubleValue();
+        double test = bd.setScale(precision[i], BigDecimal.ROUND_HALF_UP).doubleValue();
         tt.add(test);
       } else {
         tt.add(null);
@@ -57,7 +57,7 @@ public class KnnRepairUtil {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
         double test =
-            bd.setScale(precision[i - this.columnCnt], BigDecimal.ROUND_DOWN).doubleValue();
+            bd.setScale(precision[i - this.columnCnt], BigDecimal.ROUND_HALF_UP).doubleValue();
         mt.add(test);
       } else {
         mt.add(null);

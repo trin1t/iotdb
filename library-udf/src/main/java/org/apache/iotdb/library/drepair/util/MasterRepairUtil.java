@@ -12,6 +12,7 @@ public class MasterRepairUtil {
   private final int NEIGHBORS_CNT = 5;
   private final int columnCnt;
   private final int[] precision = new int[] {1, 1, 1};
+  private final int[] variance = new int[] {1, 1, 10000};
   private final ArrayList<ArrayList<Double>> td = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> td_cleaned = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> md = new ArrayList<>();
@@ -177,7 +178,9 @@ public class MasterRepairUtil {
     double distance = new Double("0.0");
 
     for (Integer pos : NotNullPosition) {
-      distance += (t_tuple.get(pos) - m_tuple.get(pos)) * (t_tuple.get(pos) - m_tuple.get(pos));
+      double temp = t_tuple.get(pos) - m_tuple.get(pos);
+      temp = temp / variance[pos];
+      distance += temp * temp;
     }
     distance = Math.sqrt(distance);
     return distance;
@@ -218,14 +221,16 @@ public class MasterRepairUtil {
     ArrayList<Double> ori_tuple = this.td.get(i);
     int pos = -1;
     for (int j = 0; j < P_i.size(); j++) {
-      int temp_n = P_i.get(j);
-      double temp_dis = this.get_tm_distance(this.td.get(temp_n), ori_tuple);
+      System.out.println("------------");
+      System.out.println(P_i.get(j));
+      System.out.println(this.td_cleaned.size());
+      double temp_dis = this.get_tm_distance(this.td_cleaned.get(P_i.get(j)), ori_tuple);
       if (temp_dis < distance) {
         distance = temp_dis;
         pos = j;
       }
     }
-    return this.td.get(pos);
+    return this.td_cleaned.get(pos);
   }
 
   public double max_Delta(ArrayList<Double> c_j, ArrayList<Integer> P_i) {
@@ -301,6 +306,34 @@ public class MasterRepairUtil {
       dis += temp_dis;
     }
     return dis / this.td.size();
+  }
+
+  public String getVariance() {
+    double[] sums = new double[columnCnt];
+    for (int i = 0; i < columnCnt; i++) {
+      sums[i] = 0d;
+    }
+    for (ArrayList<Double> arrayList : this.td) {
+      for (int j = 0; j < columnCnt; j++) {
+        sums[j] += arrayList.get(j);
+      }
+    }
+    double[] avgs = new double[columnCnt];
+    for (int i = 0; i < columnCnt; i++) {
+      avgs[i] = sums[i] / this.td.size();
+    }
+
+    double[] vars = new double[columnCnt];
+    for (int i = 0; i < columnCnt; i++) {
+      vars[i] = 0d;
+    }
+    for (ArrayList<Double> arrayList : this.td) {
+      for (int j = 0; j < columnCnt; j++) {
+        double temp = arrayList.get(j) - avgs[j];
+        vars[j] += temp * temp;
+      }
+    }
+    return Arrays.toString(vars);
   }
 
   public void fillNullValue() {

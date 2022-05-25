@@ -367,3 +367,16 @@ This function is used to calculate the accumulation departure from average of in
 + `aggr`: Granularity for calculation. "m" for month, and "d" for day.
 
 + `period`: history period for data. For example, 5 means calculate the past 5 years of data.
+
+
+## Euclidean Distance
+
+### Usage
+
+This function is used to calculate the Euclidean distance between two input series.
+
+**Name:** EuclidDis
+
+**Input Series:** Only support two input series. The types are INT32 / INT64 / FLOAT / DOUBLE.
+
+**Output Series:** Output a single series. The type is DOUBLE. There is only one data point in the series, whose timestamp is 0 and value is the result.

@@ -363,7 +363,7 @@ select HistoryAvg(precipitation,'aggr'='m') from root.weather limit 12
 
 ### 函数简介
 
-本函数用于计算原序列的距平。
+本函数用于计算原序列的累积距平。
 
 **函数名：** Accumulated Depature
 
@@ -375,3 +375,16 @@ select HistoryAvg(precipitation,'aggr'='m') from root.weather limit 12
 
 + `aggr`: 计算的粒度，输入 "m" 以月为粒度，输入 "d" 以日为粒度。
 + `period`: 历史跨度，比如5年表示计算过去5年的历史数据。
+
+
+## 欧氏距离
+
+### 函数简介
+
+本函数用于计算两个序列之间的欧氏距离。
+
+**函数名：** EuclidDis
+
+**输入序列：** 仅支持两个输入序列，类型为 INT32 / INT64 / FLOAT / DOUBLE.
+
+**输出序列：** 输出单个序列，类型为 DOUBLE，序列仅包含一个时间戳为 0、值为计算结果的数据点。

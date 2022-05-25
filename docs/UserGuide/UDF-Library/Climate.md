@@ -349,3 +349,21 @@ Output series:
 |2013-12-01T00:00:00.000+08:00|                                              17.4|
 +-----------------------------+--------------------------------------------------+
 ```
+
+## Accumulated Departure
+
+### Usage
+
+This function is used to calculate the accumulation departure from average of input series.
+
+**Name:** AccumulatedDeparture
+
+**Input Series:** Only support one input series. The type is INT32 / INT64 / FLOAT / DOUBLE.
+
+**Output Series:** Output a single series. The type is DOUBLE.
+
+**Parameters:**
+
++ `aggr`: Granularity for calculation. "m" for month, and "d" for day.
+
++ `period`: history period for data. For example, 5 means calculate the past 5 years of data.

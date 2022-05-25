@@ -11,8 +11,8 @@ import java.util.*;
 public class MasterRepairUtil {
   private final int NEIGHBORS_CNT = 5;
   private final int columnCnt;
-  private final int[] precision = new int[] {1, 1, 1};
-  private final int[] variance = new int[] {1, 1, 10000};
+  private final int[] precision = new int[] {2, 2, 2};
+  private final int[] variance = new int[] {1, 1, 1000};
   private final ArrayList<ArrayList<Double>> td = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> td_cleaned = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> md = new ArrayList<>();
@@ -197,7 +197,7 @@ public class MasterRepairUtil {
   }
 
   public void cal_A() {
-    A = new int[this.td.size()][]; // 动态创建第一维
+    A = new int[this.td.size()][];
     for (int i = 0; i < this.td.size(); i++) {
       A[i] = new int[this.td.size()]; // 动态创建第二维
       for (int j = 0; j < this.td.size(); j++) {
@@ -208,10 +208,12 @@ public class MasterRepairUtil {
     for (int i = 0; i < this.td.size(); i++) {
       A[i][i] = 1;
       for (int j = i + 1; j < this.td.size(); j++) {
-        if (i < j
-            && j <= i + mu
-            && this.td_time.get(i) < this.td_time.get(j)
-            && this.td_time.get(j) <= this.td_time.get(i) + omega) A[i][j] = 1;
+        if (j <= i + mu && this.td_time.get(j) <= this.td_time.get(i) + omega) {
+          A[i][j] = 1;
+          A[j][i] = 1;
+        } else {
+          break;
+        }
       }
     }
   }
@@ -221,10 +223,7 @@ public class MasterRepairUtil {
     ArrayList<Double> ori_tuple = this.td.get(i);
     int pos = -1;
     for (int j = 0; j < P_i.size(); j++) {
-      System.out.println("------------");
-      System.out.println(P_i.get(j));
-      System.out.println(this.td_cleaned.size());
-      double temp_dis = this.get_tm_distance(this.td_cleaned.get(P_i.get(j)), ori_tuple);
+      double temp_dis = this.get_tm_distance(this.td.get(P_i.get(j)), ori_tuple);
       if (temp_dis < distance) {
         distance = temp_dis;
         pos = j;
@@ -266,13 +265,16 @@ public class MasterRepairUtil {
       } else {
         ArrayList<ArrayList<Double>> C_i = this.kdTree.queryKNN(this.td.get(i), NEIGHBORS_CNT);
         C_i.add(cal_NearestP(P_i, i));
+        boolean added = false;
         for (ArrayList<Double> c_i : C_i) {
           double max_delta = max_Delta(c_i, P_i);
           if (max_delta <= eta) {
+            added = true;
             this.td_cleaned.add(c_i);
             break;
           }
         }
+        if (!added) this.td_cleaned.add(this.td.get(i));
       }
     }
   }

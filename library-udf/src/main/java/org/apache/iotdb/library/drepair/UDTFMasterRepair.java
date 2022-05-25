@@ -58,14 +58,14 @@ public class UDTFMasterRepair implements UDTF {
     configurations.setAccessStrategy(new RowByRowAccessStrategy());
     List<TSDataType> dataTypes = parameters.getDataTypes();
     columnCnt = parameters.getDataTypes().size() / 2;
-    columnPos = parameters.getIntOrDefault("column_position", 1);
+    columnPos = parameters.getIntOrDefault("column_pos", 1);
     output = parameters.getStringOrDefault("output", "repair_result");
-    omega = parameters.getLongOrDefault("omega", 150000);
+    omega = parameters.getLongOrDefault("omega", 1000000);
     mu = parameters.getIntOrDefault("mu", 5);
-    eta = parameters.getDoubleOrDefault("eta", 0.1);
+    eta = parameters.getDoubleOrDefault("eta", 2300);
     masterRepairUtil = new MasterRepairUtil(columnCnt, omega, mu, eta);
     if (output.equals("repair_result")) {
-      configurations.setOutputDataType(dataTypes.get(columnPos - 1));
+      configurations.setOutputDataType(TSDataType.DOUBLE);
     } else if (output.equals("repair_result_all")
         || output.equals("repair_log")
         || output.equals("t_data")
@@ -131,21 +131,20 @@ public class UDTFMasterRepair implements UDTF {
         long startTime = System.currentTimeMillis(); // 获取开始时间.
         masterRepairUtil.repair();
         long endTime = System.currentTimeMillis(); // 获取结束时间.
-        collector.putString(1, String.valueOf(masterRepairUtil.getTd().size()));
-        collector.putString(2, String.valueOf(masterRepairUtil.getMd().size()));
-        collector.putString(3, String.valueOf(endTime - startTime));
+        collector.putString(1, String.valueOf(endTime - startTime));
         break;
       case "data_info":
-        masterRepairUtil.repair();
+        //        masterRepairUtil.repair();
         collector.putString(0, "master data size: " + masterRepairUtil.getMd().size());
         collector.putString(1, "ts data size: " + masterRepairUtil.getTd().size());
         collector.putString(2, "time interval: " + masterRepairUtil.getAvgInterval());
         collector.putString(3, "dis interval: " + masterRepairUtil.getAvgDis());
         collector.putString(4, "variance: " + masterRepairUtil.getVariance());
         collector.putString(5, "cleaned data size: " + masterRepairUtil.getCleanResult().size());
-        collector.putString(
-            6, "cleaned data column 1 size: " + masterRepairUtil.getCleanResultColumn(1).size());
-        collector.putString(7, "time size: " + masterRepairUtil.getTime().size());
+        //        collector.putString(
+        //            6, "cleaned data column 1 size: " +
+        // masterRepairUtil.getCleanResultColumn(1).size());
+        //        collector.putString(7, "time size: " + masterRepairUtil.getTime().size());
         break;
       default:
         break;

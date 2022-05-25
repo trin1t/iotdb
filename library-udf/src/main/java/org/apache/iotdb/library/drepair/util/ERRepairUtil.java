@@ -253,6 +253,10 @@ public class ERRepairUtil {
   }
 
   public void er_repair() {
+    ArrayList<Double> last_tuple = new ArrayList<>();
+    for (int i = 0; i < columnCnt; i++) {
+      last_tuple.add(0d);
+    }
     for (ArrayList<Double> t_tuple : this.td) {
       if (checkIfDirty(t_tuple)) {
         boolean repaired = false;
@@ -260,15 +264,17 @@ public class ERRepairUtil {
           ArrayList<Double> result = this.repairWithEditRule(t_tuple, m_tuple);
           if (result.size() != 0) {
             this.td_cleaned.add(result);
+            last_tuple = result;
             repaired = true;
             break;
           }
         }
         if (!repaired) {
-          this.td_cleaned.add(this.td_cleaned.get(this.td_cleaned.size() - 1));
+          this.td_cleaned.add(last_tuple);
         }
       } else {
         this.td_cleaned.add(t_tuple);
+        last_tuple = t_tuple;
       }
     }
   }

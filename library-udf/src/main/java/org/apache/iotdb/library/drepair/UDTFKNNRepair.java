@@ -37,7 +37,7 @@ public class UDTFKNNRepair implements UDTF {
     configurations.setAccessStrategy(new RowByRowAccessStrategy());
     List<TSDataType> dataTypes = parameters.getDataTypes();
     columnCnt = parameters.getDataTypes().size() / 2;
-    columnPos = parameters.getIntOrDefault("column_position", 1);
+    columnPos = parameters.getIntOrDefault("column_pos", 1);
 
     knnRepairUtil = new KnnRepairUtil(columnCnt);
 
@@ -50,7 +50,8 @@ public class UDTFKNNRepair implements UDTF {
         || output.equals("m_data")
         || output.equals("test_kd_tree")
         || output.equals("data_info")
-        || output.equals("fill_null")) {
+        || output.equals("fill_null")
+        || output.equals("time_cost")) {
       configurations.setOutputDataType(TSDataType.TEXT);
     }
   }
@@ -66,11 +67,9 @@ public class UDTFKNNRepair implements UDTF {
   public void terminate(PointCollector collector) throws Exception {
     switch (output) {
       case "repair_result_all":
-        long startTime = System.currentTimeMillis(); // 获取开始时间.
+        //        long startTime = System.currentTimeMillis(); // 获取开始时间.
         knnRepairUtil.buildKDTree();
         knnRepairUtil.repair();
-        long endTime = System.currentTimeMillis(); // 获取结束时间.
-        collector.putString(1, String.valueOf(endTime - startTime));
         break;
       case "repair_result":
         knnRepairUtil.buildKDTree();
@@ -101,6 +100,13 @@ public class UDTFKNNRepair implements UDTF {
         for (int i = 0; i < t_tuples.size(); i++) {
           collector.putString(t_times.get(i), t_tuples.get(i));
         }
+        break;
+      case "time_cost":
+        long startTime = System.currentTimeMillis(); // 获取开始时间.
+        knnRepairUtil.buildKDTree();
+        knnRepairUtil.repair();
+        long endTime = System.currentTimeMillis(); // 获取结束时间.
+        collector.putString(1, String.valueOf(endTime - startTime));
         break;
       default:
         break;

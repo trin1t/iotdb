@@ -98,9 +98,7 @@ public class UDTFERRepair implements UDTF {
         long startTime = System.currentTimeMillis(); // 获取开始时间.
         erRepairUtil.repair();
         long endTime = System.currentTimeMillis(); // 获取结束时间.
-        collector.putString(1, String.valueOf(erRepairUtil.getTd().size()));
-        collector.putString(2, String.valueOf(erRepairUtil.getMd().size()));
-        collector.putString(3, String.valueOf(endTime - startTime));
+        collector.putString(1, String.valueOf(endTime - startTime));
         break;
       case "data_info":
         collector.putString(0, "master data size: " + erRepairUtil.getMd().size());

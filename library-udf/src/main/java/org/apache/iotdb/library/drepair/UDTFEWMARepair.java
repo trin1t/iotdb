@@ -13,6 +13,8 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 public class UDTFEWMARepair implements UDTF {
   private double beta = 0.3;
   private double last_ewma = 0d;
+  long start_time;
+  long end_time;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
@@ -28,16 +30,23 @@ public class UDTFEWMARepair implements UDTF {
     configurations
         .setAccessStrategy(new RowByRowAccessStrategy())
         .setOutputDataType(TSDataType.DOUBLE);
+    start_time = System.currentTimeMillis(); // 获取开始时间.
   }
 
   @Override
   public void transform(Row row, PointCollector collector) throws Exception {
     if (row.isNull(0)) {
-      collector.putDouble(row.getTime(), last_ewma);
+      //      collector.putDouble(row.getTime(), last_ewma);
     } else {
       double repaired = this.beta * last_ewma + (1 - beta) * Util.getValueAsDouble(row);
       last_ewma = repaired;
-      collector.putDouble(row.getTime(), repaired);
+      //      collector.putDouble(row.getTime(), repaired);
     }
+  }
+
+  @Override
+  public void beforeDestroy() {
+    end_time = System.currentTimeMillis(); // 获取开始时间.
+    System.out.println(String.valueOf(end_time - start_time));
   }
 }

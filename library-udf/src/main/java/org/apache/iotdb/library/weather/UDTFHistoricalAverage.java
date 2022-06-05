@@ -36,11 +36,11 @@ import java.util.HashMap;
 
 /** This function calculates the average of some value in history. */
 public class UDTFHistoricalAverage implements UDTF {
-  private ArrayList<Double> value = new ArrayList<>();
-  private ArrayList<Long> timestamp = new ArrayList<>();
-  private HashMap<Integer, Double> acc = new HashMap<>();
-  private HashMap<Integer, Integer> count = new HashMap<>();
-  private HashMap<Integer, Double> mean = new HashMap<>();
+  private final ArrayList<Double> value = new ArrayList<>();
+  private final ArrayList<Long> timestamp = new ArrayList<>();
+  private final HashMap<Integer, Double> acc = new HashMap<>();
+  private final HashMap<Integer, Integer> count = new HashMap<>();
+  private final HashMap<Integer, Double> mean = new HashMap<>();
   private String aggr;
   private int period;
   private int current_year;

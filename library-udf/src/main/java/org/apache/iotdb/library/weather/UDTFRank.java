@@ -39,17 +39,17 @@ public class UDTFRank implements UDTF {
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
-            .validateInputSeriesNumber(1)
-            .validateInputSeriesDataType(
-                    0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
+        .validateInputSeriesNumber(1)
+        .validateInputSeriesDataType(
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
   }
 
   @Override
   public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-          throws Exception {
+      throws Exception {
     configurations
-            .setAccessStrategy(new RowByRowAccessStrategy())
-            .setOutputDataType(TSDataType.DOUBLE);
+        .setAccessStrategy(new RowByRowAccessStrategy())
+        .setOutputDataType(TSDataType.DOUBLE);
   }
 
   @Override
@@ -62,16 +62,15 @@ public class UDTFRank implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for(int i=1; i < value.size(); i++){
-      for(int j=0; j < value.size()-i; j++){
-        if(value.get(j)<value.get(j+1))
-        {
-          double tmp=value.get(j);
-          value.set(j,value.get(j+1));
-          value.set(j+1,tmp);
-          long tmp_t=timestamp.get(j);
-          timestamp.set(j,timestamp.get(j+1));
-          timestamp.set(j+1,tmp_t);
+    for (int i = 1; i < value.size(); i++) {
+      for (int j = 0; j < value.size() - i; j++) {
+        if (value.get(j) < value.get(j + 1)) {
+          double tmp = value.get(j);
+          value.set(j, value.get(j + 1));
+          value.set(j + 1, tmp);
+          long tmp_t = timestamp.get(j);
+          timestamp.set(j, timestamp.get(j + 1));
+          timestamp.set(j + 1, tmp_t);
         }
       }
     }

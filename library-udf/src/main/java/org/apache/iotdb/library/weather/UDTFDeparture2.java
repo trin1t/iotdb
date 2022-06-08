@@ -34,10 +34,13 @@ import java.util.Calendar;
 import java.util.Date;
 
 /** This function collects the historical value. */
-public class UDTFHistoricalData implements UDTF {
+public class UDTFDeparture2 implements UDTF {
   private final ArrayList<Double> value = new ArrayList<>();
   private final ArrayList<Long> timestamp = new ArrayList<>();
+  private final ArrayList<Double> finalValue = new ArrayList<>();
+  private final ArrayList<Long> finalTimestamp = new ArrayList<>();
   private int period;
+  private int window;
   private int current_year;
   private long start;
   private long end;
@@ -51,7 +54,11 @@ public class UDTFHistoricalData implements UDTF {
         .validate(
             period -> (int) period > 0,
             "Parameter \"period\" should be positive integer",
-            validator.getParameters().getIntOrDefault("period", 5));
+                validator.getParameters().getIntOrDefault("period", 5))
+        .validate(
+            window -> (int) period > 0,
+            "Parameter \"window\" should be positive integer",
+                validator.getParameters().getIntOrDefault("window", 5));
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     if (validator.getParameters().hasAttribute("start")) {
       validator.validate(
@@ -75,6 +82,7 @@ public class UDTFHistoricalData implements UDTF {
         .setOutputDataType(TSDataType.DOUBLE);
 
     period = parameters.getIntOrDefault("period", 5);
+    window = parameters.getIntOrDefault("window", 5);
 
     Calendar date = Calendar.getInstance();
     current_year = date.get(Calendar.YEAR);
@@ -96,24 +104,31 @@ public class UDTFHistoricalData implements UDTF {
     Double v = Util.getValueAsDouble(row);
     Date date = new Date(t);
     int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-    String year_str = Integer.toString(year);
-    if (current_year - year <= period) {
-      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      String date_str = sdf.format(date);
-      String newDate_str = date_str.replace(date_str.substring(0,4), year_str);
-      Date newDate = sdf.parse(newDate_str);
-      long t2=newDate.getTime();
-      if(t2 > start && t2 < end ) {
-        value.add(v);
-        timestamp.add(t);
-      }
-    }
+    value.add(v);
+    timestamp.add(t);
   }
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for (int i = 0; i < value.size(); i++) {
-      collector.putDouble(timestamp.get(i), value.get(i));
+    for (int i = 0; i < value.size(); i++){
+      long t = timestamp.get(i);
+      Date date = new Date(t);
+      int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
+      if(t > start && t < end && current_year - year <= period){
+        double sum=0;
+        double count=0;
+        for(int j=-window;j<window;j++)
+        {
+          sum=sum+value.get(j);
+          count=count+1;
+        }
+        double avg=sum/count;
+        finalValue.add(avg);
+        finalTimestamp.add(t);
+      }
+    }
+    for (int i = 0; i < finalValue.size(); i++) {
+      collector.putDouble(finalTimestamp.get(i), finalValue.get(i));
     }
   }
 }

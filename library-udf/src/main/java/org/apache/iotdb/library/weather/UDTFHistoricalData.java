@@ -100,10 +100,10 @@ public class UDTFHistoricalData implements UDTF {
     if (current_year - year <= period) {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
       String date_str = sdf.format(date);
-      String newDate_str = date_str.replace(date_str.substring(0,4), year_str);
+      String newDate_str = date_str.replace(date_str.substring(0, 4), year_str);
       Date newDate = sdf.parse(newDate_str);
-      long t2=newDate.getTime();
-      if(t2 > start && t2 < end ) {
+      long t2 = newDate.getTime();
+      if (t2 > start && t2 < end) {
         value.add(v);
         timestamp.add(t);
       }

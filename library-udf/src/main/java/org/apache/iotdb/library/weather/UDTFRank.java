@@ -30,6 +30,8 @@ import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /** This function calculate the rank of the data. */
 public class UDTFRank implements UDTF {
@@ -62,6 +64,8 @@ public class UDTFRank implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
+    Map<Long, Integer> table = new HashMap<Long, Integer>();
+    ArrayList<Long> timestamp_copy = new ArrayList<Long>(timestamp);
     for (int i = 1; i < value.size(); i++) {
       for (int j = 0; j < value.size() - i; j++) {
         if (value.get(j) < value.get(j + 1)) {
@@ -75,7 +79,10 @@ public class UDTFRank implements UDTF {
       }
     }
     for (int i = 0; i < value.size(); i++) {
-      collector.putDouble(timestamp.get(i), i);
+      table.put(timestamp.get(i), i);
+    }
+    for (int i = 0; i < value.size(); i++) {
+      collector.putDouble(timestamp_copy.get(i), table.get(timestamp_copy.get(i)));
     }
   }
 }

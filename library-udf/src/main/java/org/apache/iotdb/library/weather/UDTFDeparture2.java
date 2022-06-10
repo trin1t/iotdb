@@ -54,11 +54,11 @@ public class UDTFDeparture2 implements UDTF {
         .validate(
             period -> (int) period > 0,
             "Parameter \"period\" should be positive integer",
-                validator.getParameters().getIntOrDefault("period", 5))
+            validator.getParameters().getIntOrDefault("period", 5))
         .validate(
             window -> (int) period > 0,
             "Parameter \"window\" should be positive integer",
-                validator.getParameters().getIntOrDefault("window", 5));
+            validator.getParameters().getIntOrDefault("window", 5));
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     if (validator.getParameters().hasAttribute("start")) {
       validator.validate(
@@ -110,19 +110,18 @@ public class UDTFDeparture2 implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for (int i = 0; i < value.size(); i++){
+    for (int i = 0; i < value.size(); i++) {
       long t = timestamp.get(i);
       Date date = new Date(t);
       int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-      if(t > start && t < end && current_year - year <= period){
-        double sum=0;
-        double count=0;
-        for(int j=-window;j<window;j++)
-        {
-          sum=sum+value.get(j);
-          count=count+1;
+      if (t > start && t < end && current_year - year <= period) {
+        double sum = 0;
+        double count = 0;
+        for (int j = -window; j < window; j++) {
+          sum = sum + value.get(j);
+          count = count + 1;
         }
-        double avg=sum/count;
+        double avg = sum / count;
         finalValue.add(avg);
         finalTimestamp.add(t);
       }

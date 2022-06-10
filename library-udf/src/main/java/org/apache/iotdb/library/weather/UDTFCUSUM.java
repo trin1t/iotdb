@@ -31,47 +31,45 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 import java.util.ArrayList;
 
-/**
- * This function calculate the rank of the data.
- */
+/** This function calculate the rank of the data. */
 public class UDTFCUSUM implements UDTF {
-    private final ArrayList<Double> value = new ArrayList<>();
-    private final ArrayList<Double> result = new ArrayList<>();
-    private final ArrayList<Long> timestamp = new ArrayList<>();
+  private final ArrayList<Double> value = new ArrayList<>();
+  private final ArrayList<Double> result = new ArrayList<>();
+  private final ArrayList<Long> timestamp = new ArrayList<>();
 
-    @Override
-    public void validate(UDFParameterValidator validator) throws Exception {
-        validator
-                .validateInputSeriesNumber(1)
-                .validateInputSeriesDataType(
-                        0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
-    }
+  @Override
+  public void validate(UDFParameterValidator validator) throws Exception {
+    validator
+        .validateInputSeriesNumber(1)
+        .validateInputSeriesDataType(
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
+  }
 
-    @Override
-    public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-            throws Exception {
-        configurations
-                .setAccessStrategy(new RowByRowAccessStrategy())
-                .setOutputDataType(TSDataType.DOUBLE);
-    }
+  @Override
+  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
+      throws Exception {
+    configurations
+        .setAccessStrategy(new RowByRowAccessStrategy())
+        .setOutputDataType(TSDataType.DOUBLE);
+  }
 
-    @Override
-    public void transform(Row row, PointCollector collector) throws Exception {
-        long t = row.getTime();
-        Double v = Util.getValueAsDouble(row);
-        value.add(v);
-        timestamp.add(t);
-    }
+  @Override
+  public void transform(Row row, PointCollector collector) throws Exception {
+    long t = row.getTime();
+    Double v = Util.getValueAsDouble(row);
+    value.add(v);
+    timestamp.add(t);
+  }
 
-    @Override
-    public void terminate(PointCollector collector) throws Exception {
-        double sum = 0;
-        for (int i = 0; i < value.size(); i++) {
-            sum += value.get(i);
-            result.add(sum);
-        }
-        for (int i = 0; i < value.size(); i++) {
-            collector.putDouble(timestamp.get(i), result.get(i));
-        }
+  @Override
+  public void terminate(PointCollector collector) throws Exception {
+    double sum = 0;
+    for (int i = 0; i < value.size(); i++) {
+      sum += value.get(i);
+      result.add(sum);
     }
+    for (int i = 0; i < value.size(); i++) {
+      collector.putDouble(timestamp.get(i), result.get(i));
+    }
+  }
 }

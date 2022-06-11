@@ -96,11 +96,12 @@ public class UDTFHistoricalData implements UDTF {
     Double v = Util.getValueAsDouble(row);
     Date date = new Date(t);
     int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-    String year_str = Integer.toString(year);
+    int year_start = Integer.parseInt(new SimpleDateFormat("yyyy").format(start));
+    String year_start_str = Integer.toString(year_start);
     if (current_year - year <= period) {
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
       String date_str = sdf.format(date);
-      String newDate_str = date_str.replace(date_str.substring(0, 4), year_str);
+      String newDate_str = date_str.replace(date_str.substring(0, 4), year_start_str);
       Date newDate = sdf.parse(newDate_str);
       long t2 = newDate.getTime();
       if (t2 > start && t2 < end) {

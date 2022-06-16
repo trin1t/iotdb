@@ -19,8 +19,8 @@
 package org.apache.iotdb.library.weather;
 
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
-import org.apache.iotdb.db.exception.metadata.MetadataException;
-import org.apache.iotdb.db.metadata.path.PartialPath;
+import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.service.IoTDB;
 import org.apache.iotdb.integration.env.ConfigFactory;
 import org.apache.iotdb.integration.env.EnvFactory;
@@ -61,38 +61,38 @@ public class WeatherTests {
   }
 
   private static void createTimeSeries() throws MetadataException {
-    IoTDB.schemaEngine.setStorageGroup(new PartialPath("root.vehicle"));
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.setStorageGroup(new PartialPath("root.vehicle"));
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d1.s1"),
         TSDataType.INT32,
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d1.s2"),
         TSDataType.INT32,
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d1.s3"),
         TSDataType.INT32,
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d2.s1"),
         TSDataType.DOUBLE,
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d2.s2"),
         TSDataType.DOUBLE,
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaEngine.createTimeseries(
+    IoTDB.schemaProcessor.createTimeseries(
         new PartialPath("root.weather.d2.s3"),
         TSDataType.DOUBLE,
         TSEncoding.PLAIN,

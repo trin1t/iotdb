@@ -92,12 +92,6 @@ public class WeatherTests {
         TSEncoding.PLAIN,
         CompressionType.UNCOMPRESSED,
         null);
-    IoTDB.schemaProcessor.createTimeseries(
-        new PartialPath("root.weather.d2.s3"),
-        TSDataType.DOUBLE,
-        TSEncoding.PLAIN,
-        CompressionType.UNCOMPRESSED,
-        null);
   }
 
   private static void generateData() {
@@ -123,6 +117,24 @@ public class WeatherTests {
           String.format(
               "insert into root.weather.d1(timestamp,s1,s2,s3) values(%d,%d,%d,%d))",
               1651853200, 100, 100, 100));
+      statement.addBatch(
+          String.format(
+              "insert into root.weather.d2(timestamp,s1,s2) values(%d,%d,%d))",
+              1651852800, 10, 15));
+      statement.addBatch(
+          String.format(
+              "insert into root.weather.d2(timestamp,s1,s2) values(%d,%d,%d))",
+              1651852900, 15, 20));
+      statement.addBatch(
+          String.format(
+              "insert into root.weather.d2(timestamp,s1,s2) values(%d,%d,%d))", 1651853000, 5, 0));
+      statement.addBatch(
+          String.format(
+              "insert into root.weather.d2(timestamp,s1,s2) values(%d,%d,%d))", 1651853100, 0, 5));
+      statement.addBatch(
+          String.format(
+              "insert into root.weather.d2(timestamp,s1,s2) values(%d,%d,%d))",
+              1651853200, 20, 10));
       statement.executeBatch();
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
@@ -133,6 +145,10 @@ public class WeatherTests {
     try (Connection connection = EnvFactory.getEnv().getConnection();
         Statement statement = connection.createStatement()) {
       statement.execute("create function acc as 'org.apache.iotdb.library.weather.UDAFACC'");
+      statement.execute("create function cusum as 'org.apache.iotdb.library.weather.UDTFCUSUM'");
+      statement.execute("create function rank as 'org.apache.iotdb.library.string.UDTFRank'");
+      statement.execute(
+          "create function EuclidDis as 'org.apache.iotdb.library.string.UDAFEuclidDis'");
     } catch (SQLException throwable) {
       fail(throwable.getMessage());
     }
@@ -156,6 +172,75 @@ public class WeatherTests {
       resultSet.next();
       double result1 = resultSet.getDouble(1);
       Assert.assertEquals(1.0, result1, 0.01);
+      Assert.assertFalse(resultSet.next());
+    } catch (SQLException throwable) {
+      fail(throwable.getMessage());
+    }
+  }
+
+  @Test
+  public void testCusum1() {
+    String sqlStr = "select cusum(d2.s1) from root.weather";
+    try (Connection connection = EnvFactory.getEnv().getConnection();
+        Statement statement = connection.createStatement()) {
+      ResultSet resultSet = statement.executeQuery(sqlStr);
+      resultSet.next();
+      double result1 = resultSet.getDouble(1);
+      Assert.assertEquals(10, result1, 0.01);
+      resultSet.next();
+      double result2 = resultSet.getDouble(1);
+      Assert.assertEquals(25, result2, 0.01);
+      resultSet.next();
+      double result3 = resultSet.getDouble(1);
+      Assert.assertEquals(30, result3, 0.01);
+      resultSet.next();
+      double result4 = resultSet.getDouble(1);
+      Assert.assertEquals(30, result4, 0.01);
+      resultSet.next();
+      double result5 = resultSet.getDouble(1);
+      Assert.assertEquals(50, result5, 0.01);
+      Assert.assertFalse(resultSet.next());
+    } catch (SQLException throwable) {
+      fail(throwable.getMessage());
+    }
+  }
+
+  @Test
+  public void testRank1() {
+    String sqlStr = "select rank(d2.s1) from root.weather";
+    try (Connection connection = EnvFactory.getEnv().getConnection();
+        Statement statement = connection.createStatement()) {
+      ResultSet resultSet = statement.executeQuery(sqlStr);
+      resultSet.next();
+      double result1 = resultSet.getDouble(1);
+      Assert.assertEquals(3, result1, 0.01);
+      resultSet.next();
+      double result2 = resultSet.getDouble(1);
+      Assert.assertEquals(4, result2, 0.01);
+      resultSet.next();
+      double result3 = resultSet.getDouble(1);
+      Assert.assertEquals(2, result3, 0.01);
+      resultSet.next();
+      double result4 = resultSet.getDouble(1);
+      Assert.assertEquals(1, result4, 0.01);
+      resultSet.next();
+      double result5 = resultSet.getDouble(1);
+      Assert.assertEquals(5, result5, 0.01);
+      Assert.assertFalse(resultSet.next());
+    } catch (SQLException throwable) {
+      fail(throwable.getMessage());
+    }
+  }
+
+  @Test
+  public void testEuclidDis1() {
+    String sqlStr = "select eucliddis(d2.s1,d2.s2) from root.weather";
+    try (Connection connection = EnvFactory.getEnv().getConnection();
+        Statement statement = connection.createStatement()) {
+      ResultSet resultSet = statement.executeQuery(sqlStr);
+      resultSet.next();
+      double result1 = resultSet.getDouble(1);
+      Assert.assertEquals(14.14, result1, 0.01);
       Assert.assertFalse(resultSet.next());
     } catch (SQLException throwable) {
       fail(throwable.getMessage());

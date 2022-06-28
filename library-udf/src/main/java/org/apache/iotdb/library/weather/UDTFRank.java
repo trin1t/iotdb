@@ -37,13 +37,18 @@ import java.util.Map;
 public class UDTFRank implements UDTF {
   private final ArrayList<Double> value = new ArrayList<>();
   private final ArrayList<Long> timestamp = new ArrayList<>();
+  private int descend;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
         .validateInputSeriesNumber(1)
         .validateInputSeriesDataType(
-            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE);
+            0, TSDataType.INT32, TSDataType.INT64, TSDataType.FLOAT, TSDataType.DOUBLE)
+        .validate(
+            descend -> (int) descend == 0 || (int) descend == 1,
+            "Parameter \"descend\" should be zero or one",
+            validator.getParameters().getIntOrDefault("descend", 1));
   }
 
   @Override
@@ -66,15 +71,30 @@ public class UDTFRank implements UDTF {
   public void terminate(PointCollector collector) throws Exception {
     Map<Long, Integer> table = new HashMap<Long, Integer>();
     ArrayList<Long> timestamp_copy = new ArrayList<Long>(timestamp);
-    for (int i = 1; i < value.size(); i++) {
-      for (int j = 0; j < value.size() - i; j++) {
-        if (value.get(j) < value.get(j + 1)) {
-          double tmp = value.get(j);
-          value.set(j, value.get(j + 1));
-          value.set(j + 1, tmp);
-          long tmp_t = timestamp.get(j);
-          timestamp.set(j, timestamp.get(j + 1));
-          timestamp.set(j + 1, tmp_t);
+    if (descend == 1) {
+      for (int i = 1; i < value.size(); i++) {
+        for (int j = 0; j < value.size() - i; j++) {
+          if (value.get(j) < value.get(j + 1)) {
+            double tmp = value.get(j);
+            value.set(j, value.get(j + 1));
+            value.set(j + 1, tmp);
+            long tmp_t = timestamp.get(j);
+            timestamp.set(j, timestamp.get(j + 1));
+            timestamp.set(j + 1, tmp_t);
+          }
+        }
+      }
+    } else {
+      for (int i = 1; i < value.size(); i++) {
+        for (int j = 0; j < value.size() - i; j++) {
+          if (value.get(j) > value.get(j + 1)) {
+            double tmp = value.get(j);
+            value.set(j, value.get(j + 1));
+            value.set(j + 1, tmp);
+            long tmp_t = timestamp.get(j);
+            timestamp.set(j, timestamp.get(j + 1));
+            timestamp.set(j + 1, tmp_t);
+          }
         }
       }
     }

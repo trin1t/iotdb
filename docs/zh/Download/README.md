@@ -28,7 +28,7 @@
 	    <th>release notes</th>  
 	  </tr>
       <tr>
-            <td rowspan="1">0.14.0-preview1</td>
+            <td rowspan="2">0.14.0-preview1</td>
             <td><a href="https://www.apache.org/dyn/closer.cgi/iotdb/0.14.0-preview1/apache-iotdb-0.14.0-preview1-all-bin.zip">分布式</a></td>
             <td><a href="https://downloads.apache.org/iotdb/0.14.0-preview1/apache-iotdb-0.14.0-preview1-all-bin.zip.sha512">SHA512</a></td>
             <td><a href="https://downloads.apache.org/iotdb/0.14.0-preview1/apache-iotdb-0.14.0-preview1-all-bin.zip.asc">ASC</a></td>
@@ -36,6 +36,15 @@
             <td rowspan="1"><a href="https://downloads.apache.org/iotdb/0.14.0-preview1/apache-iotdb-0.14.0-preview1-source-release.zip.sha512">SHA512</a></td>
             <td rowspan="1"><a href="https://downloads.apache.org/iotdb/0.14.0-preview1/apache-iotdb-0.14.0-preview1-source-release.zip.asc">ASC</a></td>
             <td rowspan="1"><a href="https://raw.githubusercontent.com/apache/iotdb/master/RELEASE_NOTES.md">release notes</a></td>
+      </tr>
+      <tr>
+            <td><a href="https://www.apache.org/dyn/closer.cgi/iotdb/0.14.0-preview1/library-udf-0.14.0-preview1-SNAPSHOT-jar-with-dependencies.jar">UDF 函数库</a></td>
+            <td></td>
+            <td></td>
+            <td rowspan="1"><a href="https://www.apache.org/dyn/closer.cgi/iotdb/0.14.0-preview1/library-udf-0.14.0-preview1-SNAPSHOT-sources.jar">源代码</a></td>
+            <td rowspan="1"></td>
+            <td rowspan="1"></td>
+            <td rowspan="1"></td>
       </tr>
       <tr>
             <td rowspan="3">0.13.0</td>

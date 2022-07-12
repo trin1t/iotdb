@@ -53,10 +53,10 @@ public class CommonDescriptor {
   public void initCommonConfigDir(String systemDir) {
     config.setUserFolder(systemDir + File.separator + "users");
     config.setRoleFolder(systemDir + File.separator + "roles");
+    config.setProcedureWalFolder(systemDir + File.separator + "procedure");
   }
 
   public void loadCommonProps(Properties properties) {
-
     config.setAuthorizerProvider(
         properties.getProperty("authorizer_provider_class", config.getAuthorizerProvider()));
     // if using org.apache.iotdb.db.auth.authorizer.OpenIdAuthorizer, openID_url is needed.

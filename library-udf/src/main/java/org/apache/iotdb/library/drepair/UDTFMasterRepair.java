@@ -11,7 +11,6 @@ import org.apache.iotdb.library.drepair.util.MasterRepairUtil;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class UDTFMasterRepair implements UDTF {
   private MasterRepairUtil masterRepairUtil;
@@ -19,51 +18,51 @@ public class UDTFMasterRepair implements UDTF {
   private int columnCnt;
   private String output;
   private long omega;
-  private int mu;
   private Double eta;
+  private int k;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator.validateInputSeriesDataType(
         0, TSDataType.DOUBLE, TSDataType.FLOAT, TSDataType.INT32, TSDataType.INT64);
-    if (validator.getParameters().hasAttribute("column_pos")) {
-      validator.validate(
-          columnPos -> (int) columnPos > 0,
-          "Parameter column_position should be larger than 1.",
-          validator.getParameters().getInt("column_pos"));
-    }
-    if (validator.getParameters().hasAttribute("omega")) {
-      validator.validate(
-          omega -> (int) omega > 0,
-          "Parameter omega should be larger than 0.",
-          validator.getParameters().getInt("omega"));
-    }
-    if (validator.getParameters().hasAttribute("mu")) {
-      validator.validate(
-          mu -> (int) mu > 0,
-          "Parameter mu should be larger than 0.",
-          validator.getParameters().getInt("mu"));
-    }
-    if (validator.getParameters().hasAttribute("eta")) {
-      validator.validate(
-          eta -> (double) eta > 0,
-          "Parameter mu should be larger than 0.",
-          validator.getParameters().getInt("mu"));
-    }
+        if (validator.getParameters().hasAttribute("output_column")) {
+          validator.validate(
+              columnPos -> (int) columnPos > 0,
+              "Parameter output_column should be larger than 1.",
+              validator.getParameters().getInt("output_column"));
+        }
+        if (validator.getParameters().hasAttribute("omega")) {
+          validator.validate(
+              omega -> (int) omega > 0,
+              "Parameter omega should be larger than 0.",
+              validator.getParameters().getInt("omega"));
+        }
+        if (validator.getParameters().hasAttribute("eta")) {
+          validator.validate(
+              eta -> (double) eta > 0,
+              "Parameter eta should be larger than 0.",
+              validator.getParameters().getInt("mu"));
+        }
+        if (validator.getParameters().hasAttribute("k")) {
+          validator.validate(
+              eta -> (int) k > 0,
+              "Parameter k should be larger than 0.",
+              validator.getParameters().getInt("k"));
+        }
   }
 
   @Override
   public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
       throws Exception {
     configurations.setAccessStrategy(new RowByRowAccessStrategy());
-    List<TSDataType> dataTypes = parameters.getDataTypes();
     columnCnt = parameters.getDataTypes().size() / 2;
-    columnPos = parameters.getIntOrDefault("column_pos", 1);
+    columnPos = parameters.getIntOrDefault("output_column", 1);
     output = parameters.getStringOrDefault("output", "repair_result");
-    omega = parameters.getLongOrDefault("omega", 1000000);
-    mu = parameters.getIntOrDefault("mu", 5);
-    eta = parameters.getDoubleOrDefault("eta", 2300);
-    masterRepairUtil = new MasterRepairUtil(columnCnt, omega, mu, eta);
+    omega = parameters.getLongOrDefault("omega", -1);
+    eta = parameters.getDoubleOrDefault("eta", Double.NaN);
+    k = parameters.getIntOrDefault("k", -1);
+    masterRepairUtil = new MasterRepairUtil(columnCnt, omega, eta, k);
+
     if (output.equals("repair_result")) {
       configurations.setOutputDataType(TSDataType.DOUBLE);
     } else if (output.equals("repair_result_all")
@@ -104,13 +103,13 @@ public class UDTFMasterRepair implements UDTF {
           collector.putDouble(times.get(i), column.get(i));
         }
         break;
-      case "testP":
-        ArrayList<String> ps = masterRepairUtil.testP();
-        times = masterRepairUtil.getTime();
-        for (int i = 0; i < ps.size(); i++) {
-          collector.putString(times.get(i), ps.get(i));
-        }
-        break;
+        //      case "testP":
+        //        ArrayList<String> ps = masterRepairUtil.testP();
+        //        times = masterRepairUtil.getTime();
+        //        for (int i = 0; i < ps.size(); i++) {
+        //          collector.putString(times.get(i), ps.get(i));
+        //        }
+        //        break;
       case "t_data":
         rows = masterRepairUtil.getTimeSeriesData();
         times = masterRepairUtil.getTime();

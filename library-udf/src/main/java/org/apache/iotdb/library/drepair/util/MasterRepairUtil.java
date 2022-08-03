@@ -9,25 +9,28 @@ import java.math.BigDecimal;
 import java.util.*;
 
 public class MasterRepairUtil {
-  private final int NEIGHBORS_CNT = 5;
+  //  private final int[] precision = {3, 3, 3};
   private final int columnCnt;
-  private final int[] precision = new int[] {2, 2, 2};
-  private final int[] variance = new int[] {1, 1, 1000};
   private final ArrayList<ArrayList<Double>> td = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> td_cleaned = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> md = new ArrayList<>();
   private final ArrayList<Long> td_time = new ArrayList<>();
   private long omega;
-  private int mu;
   private Double eta;
+  private int k;
+  private double[] std;
+  private long interval;
   private KDTree kdTree;
-  private int[][] A;
 
-  public MasterRepairUtil(int columnCnt, long omega, int mu, double eta) {
+  public MasterRepairUtil(int columnCnt, long omega, double eta, int k) throws Exception {
     this.columnCnt = columnCnt;
     this.omega = omega;
-    this.mu = mu;
     this.eta = eta;
+    this.k = k;
+  }
+
+  public void buildKDTree() {
+    this.kdTree = KDTree.build(md, this.columnCnt);
   }
 
   public boolean isNullRow(Row row) {
@@ -41,10 +44,6 @@ public class MasterRepairUtil {
     return flag;
   }
 
-  public void buildKDTree() {
-    this.kdTree = KDTree.build(md, this.columnCnt);
-  }
-
   public void addRow(Row row) throws IOException, NoNumberException {
     ArrayList<Double> tt = new ArrayList<>(); // time-series tuple
     boolean containsNotNull = false;
@@ -52,8 +51,9 @@ public class MasterRepairUtil {
       if (!row.isNull(i)) {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
-        double test = bd.setScale(precision[i], BigDecimal.ROUND_DOWN).doubleValue();
-        tt.add(test);
+        //        double test = bd.setScale(precision[i], BigDecimal.ROUND_DOWN).doubleValue();
+        //        tt.add(test);
+        tt.add(bd.doubleValue());
       } else {
         tt.add(null);
       }
@@ -69,9 +69,11 @@ public class MasterRepairUtil {
       if (!row.isNull(i)) {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
-        double test =
-            bd.setScale(precision[i - this.columnCnt], BigDecimal.ROUND_DOWN).doubleValue();
-        mt.add(test);
+        //        double test =
+        //            bd.setScale(precision[i - this.columnCnt],
+        // BigDecimal.ROUND_DOWN).doubleValue();
+        //        mt.add(test);
+        mt.add(bd.doubleValue());
       } else {
         mt.add(null);
       }
@@ -164,122 +166,115 @@ public class MasterRepairUtil {
   }
 
   public double get_tm_distance(ArrayList<Double> t_tuple, ArrayList<Double> m_tuple) {
-    if (t_tuple.size() != m_tuple.size()) {
-      return Double.MAX_VALUE;
-    }
-
-    ArrayList<Integer> NotNullPosition = new ArrayList<>();
-    for (int i = 0; i < t_tuple.size(); i++) {
-      if (t_tuple.get(i) != null) {
-        NotNullPosition.add(i);
-      }
-    }
-
-    double distance = new Double("0.0");
-
-    for (Integer pos : NotNullPosition) {
+    double distance = 0d;
+    for (int pos = 0; pos < columnCnt; pos++) {
       double temp = t_tuple.get(pos) - m_tuple.get(pos);
-      temp = temp / variance[pos];
+      temp = temp / std[pos];
       distance += temp * temp;
     }
     distance = Math.sqrt(distance);
     return distance;
   }
 
-  public ArrayList<Integer> cal_P(int i) {
-    ArrayList<Integer> p_i = new ArrayList<>();
-    for (int l = 0; l < i; l++) {
-      if (A[l][i] == 1) {
-        p_i.add(l);
+  public ArrayList<Integer> cal_T(int i) {
+    ArrayList<Integer> T_i = new ArrayList<>();
+    for (int l = i - 1; l >= 0; l--) {
+      if (this.td_time.get(i) <= this.td_time.get(l) + omega) {
+        T_i.add(l);
       }
     }
-    return p_i;
+    return T_i;
   }
 
-  public void cal_A() {
-    A = new int[this.td.size()][];
-    for (int i = 0; i < this.td.size(); i++) {
-      A[i] = new int[this.td.size()]; // 动态创建第二维
-      for (int j = 0; j < this.td.size(); j++) {
-        A[i][j] = 0;
+  public ArrayList<ArrayList<Double>> cal_C(int i, ArrayList<Integer> T_i) {
+    ArrayList<ArrayList<Double>> C_i = new ArrayList<>();
+    if (T_i.size() == 0) {
+      C_i.add(this.kdTree.query(this.td.get(i), std));
+    } else {
+      //            C_i.add(this.kdTree.query(this.td.get(i), std));
+      C_i.addAll(this.kdTree.queryKNN(this.td.get(i), k, std));
+      for (Integer integer : T_i) {
+        C_i.addAll(this.kdTree.queryKNN(this.td_cleaned.get(integer), k, std));
       }
     }
-
-    for (int i = 0; i < this.td.size(); i++) {
-      A[i][i] = 1;
-      for (int j = i + 1; j < this.td.size(); j++) {
-        if (j <= i + mu && this.td_time.get(j) <= this.td_time.get(i) + omega) {
-          A[i][j] = 1;
-          A[j][i] = 1;
-        } else {
-          break;
-        }
-      }
-    }
-  }
-
-  public ArrayList<Double> cal_NearestP(ArrayList<Integer> P_i, int i) {
-    double distance = Double.MAX_VALUE;
-    ArrayList<Double> ori_tuple = this.td.get(i);
-    int pos = -1;
-    for (int j = 0; j < P_i.size(); j++) {
-      double temp_dis = this.get_tm_distance(this.td.get(P_i.get(j)), ori_tuple);
-      if (temp_dis < distance) {
-        distance = temp_dis;
-        pos = j;
-      }
-    }
-    return this.td_cleaned.get(pos);
-  }
-
-  public double max_Delta(ArrayList<Double> c_j, ArrayList<Integer> P_i) {
-    double max_dis = Double.MIN_VALUE;
-    for (Integer integer : P_i) {
-      double temp_dis = get_tm_distance(c_j, this.td_cleaned.get(integer));
-      if (temp_dis > max_dis) {
-        max_dis = temp_dis;
-      }
-    }
-    return max_dis;
-  }
-
-  public ArrayList<String> testP() {
-    ArrayList<String> Ps = new ArrayList<>();
-    this.buildKDTree();
-    cal_A();
-    for (int i = 0; i < this.td.size(); i++) {
-      ArrayList<Integer> P_i = cal_P(i);
-      Ps.add(P_i.toString());
-    }
-    return Ps;
+    return C_i;
   }
 
   public void master_repair() {
-    this.fillNullValue();
-    this.buildKDTree();
-    cal_A();
     for (int i = 0; i < this.td.size(); i++) {
-      ArrayList<Integer> P_i = cal_P(i);
-      if (P_i.size() == 0) {
-        this.td_cleaned.add(this.kdTree.query(this.td.get(i)));
-      } else {
-        ArrayList<ArrayList<Double>> C_i = this.kdTree.queryKNN(this.td.get(i), NEIGHBORS_CNT);
-        C_i.add(cal_NearestP(P_i, i));
-        boolean added = false;
-        for (ArrayList<Double> c_i : C_i) {
-          double max_delta = max_Delta(c_i, P_i);
-          if (max_delta <= eta) {
-            added = true;
-            this.td_cleaned.add(c_i);
+      ArrayList<Double> tuple = this.td.get(i);
+      ArrayList<Integer> T_i = cal_T(i);
+      ArrayList<ArrayList<Double>> C_i = this.cal_C(i, T_i);
+      double min_dis = Double.MAX_VALUE;
+      ArrayList<Double> repair_tuple = new ArrayList<>();
+      for (ArrayList<Double> c_i : C_i) {
+        boolean smooth = true;
+        for (Integer t_i : T_i) {
+          ArrayList<Double> t_is = td_cleaned.get(t_i);
+          if (get_tm_distance(c_i, t_is) > eta) {
+            smooth = false;
             break;
           }
         }
-        if (!added) this.td_cleaned.add(this.td.get(i));
+        if (smooth) {
+          double dis = get_tm_distance(c_i, tuple);
+          if (dis < min_dis) {
+            min_dis = dis;
+            repair_tuple = c_i;
+          }
+        }
       }
+      this.td_cleaned.add(repair_tuple);
+    }
+  }
+
+  public void set_parameters() {
+    //    TODO
+  }
+
+  private double varianceImperative(double[] value) {
+    double average = 0.0;
+    int cnt = 0;
+    for (double p : value) {
+      if (!Double.isNaN(p)) {
+        cnt += 1;
+        average += p;
+      }
+    }
+    if (cnt == 0) {
+      return 0d;
+    }
+    average /= cnt;
+
+    double variance = 0.0;
+    for (double p : value) {
+      if (!Double.isNaN(p)) {
+        variance += (p - average) * (p - average);
+      }
+    }
+    return variance / cnt;
+  }
+
+  private double[] getColumn(int pos) {
+    double[] column = new double[this.td.size()];
+    for (int i = 0; i < this.td.size(); i++) {
+      column[i] = this.td.get(i).get(pos);
+    }
+    return column;
+  }
+
+  public void call_std() {
+    this.std = new double[this.columnCnt];
+    for (int i = 0; i < this.columnCnt; i++) {
+      std[i] = Math.sqrt(varianceImperative(getColumn(i)));
     }
   }
 
   public void repair() throws Exception {
+    fillNullValue();
+    buildKDTree();
+    call_std();
+    set_parameters();
     master_repair();
   }
 
@@ -344,7 +339,6 @@ public class MasterRepairUtil {
       for (ArrayList<Double> arrayList : this.td) {
         if (arrayList.get(i) == null) {
           arrayList.set(i, temp);
-          //          this.td.set(j)
         } else {
           temp = arrayList.get(i);
         }

@@ -7,10 +7,8 @@ import java.util.Stack;
 import static java.lang.Math.min;
 import static java.lang.Math.sqrt;
 
-public class KDTree {
+public class KDTreeUtil {
   private Node kdtree;
-
-  private ArrayList<Double> diss = new ArrayList<>();
 
   private static class Node {
     // 分割的维度
@@ -22,7 +20,6 @@ public class KDTree {
     ArrayList<Double> value;
     // 是否为叶子
     boolean isLeaf = false;
-    //        boolean isVisited = false;
     // 左树
     Node left;
     // 右树
@@ -33,10 +30,8 @@ public class KDTree {
     ArrayList<Double> max;
   }
 
-  private void KDTree() {}
-
-  public static KDTree build(ArrayList<ArrayList<Double>> input, int dimension) {
-    KDTree tree = new KDTree();
+  public static KDTreeUtil build(ArrayList<ArrayList<Double>> input, int dimension) {
+    KDTreeUtil tree = new KDTreeUtil();
     tree.kdtree = new Node();
     tree.buildDetail(tree.kdtree, input, dimension);
     return tree;
@@ -136,11 +131,6 @@ public class KDTree {
           nearest = node.value;
         }
       } else {
-        /*
-         * 得到该节点代表的超矩形中点到查找点的最小距离mindistance
-         * 如果mindistance<distance表示有可能在这个节点的子节点上找到更近的点
-         * 否则不可能找到
-         */
         double mindistance = UtilZ.mindistance(input, node.max, node.min, std);
         if (mindistance < distance) {
           while (!node.isLeaf) {
@@ -157,39 +147,25 @@ public class KDTree {
             distance = tdis;
             nearest = node.value;
           }
-
-          //                    }
         }
       }
     }
     return nearest;
   }
 
-  //    public void cleanVisitedMark(Node node) {
-  //        if (node != null) {
-  //            node.isVisited = false;
-  //            cleanVisitedMark(node.left);
-  //            cleanVisitedMark(node.right);
-  //        }
-  //    }
-
   public ArrayList<ArrayList<Double>> queryRecKNN(
       ArrayList<Double> input, double distance, Stack<Node> stack, double[] std) {
     ArrayList<ArrayList<Double>> nearest = new ArrayList<>();
     Node node;
-    Node nearest_node = null;
     double tdis;
     while (stack.size() != 0) {
       node = stack.pop();
       if (node.isLeaf) {
-        //                if (!node.isVisited) {
         tdis = UtilZ.distance(input, node.value, std);
         if (tdis < distance) {
           distance = tdis;
-          nearest_node = node;
           nearest.add(node.value);
         }
-        //                }
       } else {
         /*
          * 得到该节点代表的超矩形中点到查找点的最小距离mindistance
@@ -207,20 +183,14 @@ public class KDTree {
               node = node.right;
             }
           }
-          //                    if (!node.isVisited) {
           tdis = UtilZ.distance(input, node.value, std);
           if (tdis < distance) {
             distance = tdis;
-            nearest_node = node;
             nearest.add(node.value);
           }
-
-          //                    }
         }
       }
     }
-    //        if (nearest_node != null)
-    //            nearest_node.isVisited = true;
     return nearest;
   }
 
@@ -255,29 +225,16 @@ public class KDTree {
     }
     double distance = UtilZ.distance(input, node.value, std);
     ArrayList<ArrayList<Double>> nearest = queryRecKNN(input, distance, stack, std);
-    //        System.out.println(nearest);
-    //        System.out.println(nearest.size());
-    //        if (nearest.size() < k) {
-    //            System.out.println("error");
-    //        }
     for (int i = 0; i < min(k, nearest.size()); i++) {
       kNearest.add(findNearest(input, nearest, std));
     }
     if (kNearest.size() == 0) {
       kNearest.add(node.value);
     }
-    for (int i = 0; i < kNearest.size(); i++) {
-      double dis = UtilZ.distance(kNearest.get(i), input, std);
-      //            if (dis < 10) {
-      diss.add(dis);
-      //            }
+    for (ArrayList<Double> doubles : kNearest) {
+      UtilZ.distance(doubles, input, std);
     }
-    //        System.out.println(kNearest.size());
     return kNearest;
-  }
-
-  public ArrayList<Double> getDiss() {
-    return diss;
   }
 
   public static class TupleWithDistance implements Comparable<TupleWithDistance> {

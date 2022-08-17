@@ -9,28 +9,22 @@ import java.math.BigDecimal;
 import java.util.*;
 
 public class MasterRepairUtil {
-  //  private final int[] precision = {3, 3, 3};
-  private final int columnCnt;
   private final ArrayList<ArrayList<Double>> td = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> td_cleaned = new ArrayList<>();
   private final ArrayList<ArrayList<Double>> md = new ArrayList<>();
   private final ArrayList<Long> td_time = new ArrayList<>();
+  private final int columnCnt;
   private long omega;
   private Double eta;
   private int k;
   private double[] std;
-  private long interval;
-  private KDTree kdTree;
+  private KDTreeUtil kdTreeUtil;
 
   public MasterRepairUtil(int columnCnt, long omega, double eta, int k) throws Exception {
     this.columnCnt = columnCnt;
     this.omega = omega;
     this.eta = eta;
     this.k = k;
-  }
-
-  public void buildKDTree() {
-    this.kdTree = KDTree.build(md, this.columnCnt);
   }
 
   public boolean isNullRow(Row row) {
@@ -51,8 +45,6 @@ public class MasterRepairUtil {
       if (!row.isNull(i)) {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
-        //        double test = bd.setScale(precision[i], BigDecimal.ROUND_DOWN).doubleValue();
-        //        tt.add(test);
         tt.add(bd.doubleValue());
       } else {
         tt.add(null);
@@ -69,10 +61,6 @@ public class MasterRepairUtil {
       if (!row.isNull(i)) {
         containsNotNull = true;
         BigDecimal bd = BigDecimal.valueOf(Util.getValueAsDouble(row, i));
-        //        double test =
-        //            bd.setScale(precision[i - this.columnCnt],
-        // BigDecimal.ROUND_DOWN).doubleValue();
-        //        mt.add(test);
         mt.add(bd.doubleValue());
       } else {
         mt.add(null);
@@ -83,46 +71,8 @@ public class MasterRepairUtil {
     }
   }
 
-  public ArrayList<String> getTimeSeriesData() {
-    ArrayList<String> strings = new ArrayList<>();
-    for (ArrayList<Double> tuple : td) {
-      StringBuilder s = new StringBuilder();
-      for (int i = 0; i < tuple.size(); i++) {
-        if (i != 0) {
-          s.append(",");
-        }
-        if (tuple.get(i) != null) {
-          s.append(tuple.get(i).toString());
-        }
-      }
-      strings.add(s.toString());
-    }
-    return strings;
-  }
-
-  public ArrayList<String> getCleanResult() {
-    ArrayList<String> strings = new ArrayList<>();
-    for (ArrayList<Double> tuple : this.td_cleaned) {
-      StringBuilder s = new StringBuilder();
-      for (int i = 0; i < tuple.size(); i++) {
-        if (i != 0) {
-          s.append(",");
-        }
-        if (tuple.get(i) != null) {
-          s.append(tuple.get(i).toString());
-        }
-      }
-      strings.add(s.toString());
-    }
-    return strings;
-  }
-
-  public ArrayList<Double> getTimeSeriesColumn(int columnPos) {
-    ArrayList<Double> column = new ArrayList<>();
-    for (ArrayList<Double> tuple : td) {
-      column.add(tuple.get(columnPos - 1));
-    }
-    return column;
+  public void buildKDTree() {
+    this.kdTreeUtil = KDTreeUtil.build(md, this.columnCnt);
   }
 
   public ArrayList<Double> getCleanResultColumn(int columnPos) {
@@ -131,34 +81,6 @@ public class MasterRepairUtil {
       column.add(tuple.get(columnPos - 1));
     }
     return column;
-  }
-
-  public ArrayList<String> getMasterData() {
-    ArrayList<String> strings = new ArrayList<>();
-    for (ArrayList<Double> doubles : md) {
-      StringBuilder s = new StringBuilder();
-      for (int i = 0; i < doubles.size(); i++) {
-        if (i != 0) {
-          s.append(", ");
-        }
-        s.append(doubles.get(i).toString());
-      }
-      strings.add(s.toString());
-    }
-    return strings;
-  }
-
-  public String toStr(ArrayList<Double> tuple) {
-    StringBuilder s = new StringBuilder();
-    for (int i = 0; i < tuple.size(); i++) {
-      if (i != 0) {
-        s.append(", ");
-      }
-      if (tuple.get(i) != null) {
-        s.append(tuple.get(i).toString());
-      }
-    }
-    return s.toString();
   }
 
   public ArrayList<Long> getTime() {
@@ -176,25 +98,24 @@ public class MasterRepairUtil {
     return distance;
   }
 
-  public ArrayList<Integer> cal_T(int i) {
-    ArrayList<Integer> T_i = new ArrayList<>();
+  public ArrayList<Integer> cal_W(int i) {
+    ArrayList<Integer> W_i = new ArrayList<>();
     for (int l = i - 1; l >= 0; l--) {
       if (this.td_time.get(i) <= this.td_time.get(l) + omega) {
-        T_i.add(l);
+        W_i.add(l);
       }
     }
-    return T_i;
+    return W_i;
   }
 
-  public ArrayList<ArrayList<Double>> cal_C(int i, ArrayList<Integer> T_i) {
+  public ArrayList<ArrayList<Double>> cal_C(int i, ArrayList<Integer> W_i) {
     ArrayList<ArrayList<Double>> C_i = new ArrayList<>();
-    if (T_i.size() == 0) {
-      C_i.add(this.kdTree.query(this.td.get(i), std));
+    if (W_i.size() == 0) {
+      C_i.add(this.kdTreeUtil.query(this.td.get(i), std));
     } else {
-      //            C_i.add(this.kdTree.query(this.td.get(i), std));
-      C_i.addAll(this.kdTree.queryKNN(this.td.get(i), k, std));
-      for (Integer integer : T_i) {
-        C_i.addAll(this.kdTree.queryKNN(this.td_cleaned.get(integer), k, std));
+      C_i.addAll(this.kdTreeUtil.queryKNN(this.td.get(i), k, std));
+      for (Integer integer : W_i) {
+        C_i.addAll(this.kdTreeUtil.queryKNN(this.td_cleaned.get(integer), k, std));
       }
     }
     return C_i;
@@ -203,15 +124,15 @@ public class MasterRepairUtil {
   public void master_repair() {
     for (int i = 0; i < this.td.size(); i++) {
       ArrayList<Double> tuple = this.td.get(i);
-      ArrayList<Integer> T_i = cal_T(i);
-      ArrayList<ArrayList<Double>> C_i = this.cal_C(i, T_i);
+      ArrayList<Integer> W_i = cal_W(i);
+      ArrayList<ArrayList<Double>> C_i = this.cal_C(i, W_i);
       double min_dis = Double.MAX_VALUE;
       ArrayList<Double> repair_tuple = new ArrayList<>();
       for (ArrayList<Double> c_i : C_i) {
         boolean smooth = true;
-        for (Integer t_i : T_i) {
-          ArrayList<Double> t_is = td_cleaned.get(t_i);
-          if (get_tm_distance(c_i, t_is) > eta) {
+        for (Integer w_i : W_i) {
+          ArrayList<Double> w_is = td_cleaned.get(w_i);
+          if (get_tm_distance(c_i, w_is) > eta) {
             smooth = false;
             break;
           }
@@ -229,7 +150,43 @@ public class MasterRepairUtil {
   }
 
   public void set_parameters() {
-    //    TODO
+    if (omega == -1) {
+      ArrayList<Long> intervals = getIntervals();
+      Collections.sort(intervals);
+      long interval = intervals.get(intervals.size() / 2);
+      omega = interval * 10;
+    }
+    if (Double.isNaN(eta)) {
+      ArrayList<Double> distance_list = new ArrayList<>();
+      for (int i = 1; i < this.td.size(); i++) {
+        for (int l = i - 1; l >= 0; l--) {
+          if (this.td_time.get(i) <= this.td_time.get(l) + omega) {
+            distance_list.add(get_tm_distance(this.td.get(i), this.td.get(l)));
+          } else break;
+        }
+      }
+      Collections.sort(distance_list);
+      eta = distance_list.get((int) (distance_list.size() * 0.9973));
+    }
+    if (k == -1) {
+      for (int temp_k = 2; temp_k <= 5; temp_k++) {
+        ArrayList<Double> distance_list = new ArrayList<>();
+        for (ArrayList<Double> tuple : this.td) {
+          ArrayList<ArrayList<Double>> neighbors = this.kdTreeUtil.queryKNN(tuple, temp_k, std);
+          for (ArrayList<Double> neighbor : neighbors) {
+            distance_list.add(get_tm_distance(tuple, neighbor));
+          }
+        }
+        Collections.sort(distance_list);
+        if (distance_list.get((int) (distance_list.size() * 0.9)) > eta) {
+          k = temp_k;
+          break;
+        }
+      }
+      if (k == -1) {
+        k = 5;
+      }
+    }
   }
 
   private double varianceImperative(double[] value) {
@@ -270,67 +227,23 @@ public class MasterRepairUtil {
     }
   }
 
-  public void repair() throws Exception {
+  public void repair() {
     fillNullValue();
     buildKDTree();
     call_std();
     set_parameters();
+    System.out.println(this.omega);
+    System.out.println(this.eta);
+    System.out.println(this.k);
     master_repair();
   }
 
-  public ArrayList<ArrayList<Double>> getTd() {
-    return td;
-  }
-
-  public ArrayList<ArrayList<Double>> getMd() {
-    return md;
-  }
-
-  public long getAvgInterval() {
-    long avg = 0;
+  public ArrayList<Long> getIntervals() {
+    ArrayList<Long> intervals = new ArrayList<>();
     for (int i = 1; i < this.td_time.size(); i++) {
-      long interval = this.td_time.get(i) - this.td_time.get(i - 1);
-      avg += interval;
+      intervals.add(this.td_time.get(i) - this.td_time.get(i - 1));
     }
-    return avg / this.td_time.size();
-  }
-
-  public double getAvgDis() {
-    fillNullValue();
-    double dis = 0.0;
-    for (int i = 1; i < this.td.size(); i++) {
-      double temp_dis = this.get_tm_distance(this.td.get(i), this.td.get(i - 1));
-      dis += temp_dis;
-    }
-    return dis / this.td.size();
-  }
-
-  public String getVariance() {
-    double[] sums = new double[columnCnt];
-    for (int i = 0; i < columnCnt; i++) {
-      sums[i] = 0d;
-    }
-    for (ArrayList<Double> arrayList : this.td) {
-      for (int j = 0; j < columnCnt; j++) {
-        sums[j] += arrayList.get(j);
-      }
-    }
-    double[] avgs = new double[columnCnt];
-    for (int i = 0; i < columnCnt; i++) {
-      avgs[i] = sums[i] / this.td.size();
-    }
-
-    double[] vars = new double[columnCnt];
-    for (int i = 0; i < columnCnt; i++) {
-      vars[i] = 0d;
-    }
-    for (ArrayList<Double> arrayList : this.td) {
-      for (int j = 0; j < columnCnt; j++) {
-        double temp = arrayList.get(j) - avgs[j];
-        vars[j] += temp * temp;
-      }
-    }
-    return Arrays.toString(vars);
+    return intervals;
   }
 
   public void fillNullValue() {
@@ -344,21 +257,5 @@ public class MasterRepairUtil {
         }
       }
     }
-  }
-
-  public double[] arrayListToList(ArrayList<Double> arrayList) {
-    double[] doubles = new double[arrayList.size()];
-    for (int i = 0; i < arrayList.size(); i++) {
-      doubles[i] = arrayList.get(i);
-    }
-    return doubles;
-  }
-
-  public ArrayList<Double> listToArrayList(double[] list) {
-    ArrayList<Double> arrayList = new ArrayList<>(list.length);
-    for (int i = 0; i < list.length; i++) {
-      arrayList.set(i, list[i]);
-    }
-    return arrayList;
   }
 }

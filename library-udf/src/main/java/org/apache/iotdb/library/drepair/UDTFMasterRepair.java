@@ -15,10 +15,6 @@ import java.util.ArrayList;
 public class UDTFMasterRepair implements UDTF {
   private MasterRepairUtil masterRepairUtil;
   private int output_column;
-  private int columnCnt;
-  private long omega;
-  private Double eta;
-  private int k;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
@@ -57,12 +53,11 @@ public class UDTFMasterRepair implements UDTF {
       throws Exception {
     configurations.setAccessStrategy(new RowByRowAccessStrategy());
     configurations.setOutputDataType(TSDataType.DOUBLE);
-    columnCnt = parameters.getDataTypes().size() / 2;
-    omega = parameters.getLongOrDefault("omega", -1);
-    eta = parameters.getDoubleOrDefault("eta", Double.NaN);
-    k = parameters.getIntOrDefault("k", -1);
+    int columnCnt = parameters.getDataTypes().size() / 2;
+    long omega = parameters.getLongOrDefault("omega", -1);
+    double eta = parameters.getDoubleOrDefault("eta", Double.NaN);
+    int k = parameters.getIntOrDefault("k", -1);
     masterRepairUtil = new MasterRepairUtil(columnCnt, omega, eta, k);
-
     output_column = parameters.getIntOrDefault("output_column", 1);
   }
 

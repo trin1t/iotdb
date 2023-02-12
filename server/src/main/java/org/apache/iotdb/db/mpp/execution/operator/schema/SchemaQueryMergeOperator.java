@@ -51,8 +51,8 @@ public class SchemaQueryMergeOperator implements ProcessOperator {
 
   @Override
   public TsBlock next() {
-    if (children.get(currentIndex).hasNext()) {
-      return children.get(currentIndex).next();
+    if (children.get(currentIndex).hasNextWithTimer()) {
+      return children.get(currentIndex).nextWithTimer();
     } else {
       currentIndex++;
       return null;
@@ -71,7 +71,7 @@ public class SchemaQueryMergeOperator implements ProcessOperator {
 
   @Override
   public boolean isFinished() {
-    return !hasNext();
+    return !hasNextWithTimer();
   }
 
   @Override
@@ -79,5 +79,34 @@ public class SchemaQueryMergeOperator implements ProcessOperator {
     for (Operator child : children) {
       child.close();
     }
+  }
+
+  @Override
+  public long calculateMaxPeekMemory() {
+    long childrenMaxPeekMemory = 0;
+    for (Operator child : children) {
+      childrenMaxPeekMemory = Math.max(childrenMaxPeekMemory, child.calculateMaxPeekMemory());
+    }
+
+    return childrenMaxPeekMemory;
+  }
+
+  @Override
+  public long calculateMaxReturnSize() {
+    long childrenMaxReturnSize = 0;
+    for (Operator child : children) {
+      childrenMaxReturnSize = Math.max(childrenMaxReturnSize, child.calculateMaxReturnSize());
+    }
+
+    return childrenMaxReturnSize;
+  }
+
+  @Override
+  public long calculateRetainedSizeAfterCallingNext() {
+    long retainedSize = 0L;
+    for (Operator child : children) {
+      retainedSize += child.calculateRetainedSizeAfterCallingNext();
+    }
+    return retainedSize;
   }
 }

@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.db.mpp.transformation.dag.udf;
 
-import org.apache.iotdb.commons.udf.service.UDFRegistrationService;
+import org.apache.iotdb.commons.udf.service.UDFManagementService;
 import org.apache.iotdb.commons.udf.utils.UDFDataTypeTransformer;
 import org.apache.iotdb.db.mpp.transformation.datastructure.tv.ElasticSerializableTVList;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -29,6 +29,7 @@ import org.apache.iotdb.udf.api.access.RowWindow;
 import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
 import org.apache.iotdb.udf.api.customizer.parameter.UDFParameterValidator;
 import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
+import org.apache.iotdb.udf.api.customizer.strategy.AccessStrategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,27 @@ public class UDTFExecutor {
       List<String> childExpressions,
       List<TSDataType> childExpressionDataTypes,
       Map<String, String> attributes) {
-    udtf = (UDTF) UDFRegistrationService.getInstance().reflect(functionName);
+    reflectAndValidateUDF(childExpressions, childExpressionDataTypes, attributes);
+    configurations.check();
+
+    // Mappable UDF does not need PointCollector
+    if (!AccessStrategy.AccessStrategyType.MAPPABLE_ROW_BY_ROW.equals(
+        configurations.getAccessStrategy().getAccessStrategyType())) {
+      collector =
+          ElasticSerializableTVList.newElasticSerializableTVList(
+              UDFDataTypeTransformer.transformToTsDataType(configurations.getOutputDataType()),
+              queryId,
+              collectorMemoryBudgetInMB,
+              1);
+    }
+  }
+
+  private void reflectAndValidateUDF(
+      List<String> childExpressions,
+      List<TSDataType> childExpressionDataTypes,
+      Map<String, String> attributes) {
+
+    udtf = (UDTF) UDFManagementService.getInstance().reflect(functionName);
 
     final UDFParameters parameters =
         new UDFParameters(
@@ -78,14 +99,6 @@ public class UDTFExecutor {
     } catch (Exception e) {
       onError("beforeStart(UDFParameters, UDTFConfigurations)", e);
     }
-    configurations.check();
-
-    collector =
-        ElasticSerializableTVList.newElasticSerializableTVList(
-            UDFDataTypeTransformer.transformToTsDataType(configurations.getOutputDataType()),
-            queryId,
-            collectorMemoryBudgetInMB,
-            1);
   }
 
   public void execute(Row row, boolean isCurrentRowNull) {
@@ -136,10 +149,13 @@ public class UDTFExecutor {
   }
 
   private void onError(String methodName, Exception e) {
-    LOGGER.warn("Error occurred during executing UDTF", e);
+    LOGGER.warn(
+        "Error occurred during executing UDTF, perhaps need to check whether the implementation of UDF is correct according to the udf-api description.",
+        e);
     throw new RuntimeException(
         String.format(
-                "Error occurred during executing UDTF#%s: %s", methodName, System.lineSeparator())
+                "Error occurred during executing UDTF#%s: %s, perhaps need to check whether the implementation of UDF is correct according to the udf-api description.",
+                methodName, System.lineSeparator())
             + e);
   }
 

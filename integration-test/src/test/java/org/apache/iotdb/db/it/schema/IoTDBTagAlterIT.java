@@ -18,8 +18,8 @@
  */
 package org.apache.iotdb.db.it.schema;
 
+import org.apache.iotdb.db.mpp.common.header.ColumnHeaderConstant;
 import org.apache.iotdb.it.env.EnvFactory;
-import org.apache.iotdb.it.framework.IoTDBTestRunner;
 import org.apache.iotdb.itbase.category.ClusterIT;
 import org.apache.iotdb.itbase.category.LocalStandaloneIT;
 
@@ -27,7 +27,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -38,18 +37,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@RunWith(IoTDBTestRunner.class)
 @Category({LocalStandaloneIT.class, ClusterIT.class})
-public class IoTDBTagAlterIT {
+public class IoTDBTagAlterIT extends AbstractSchemaIT {
+
+  public IoTDBTagAlterIT(SchemaTestMode schemaTestMode) {
+    super(schemaTestMode);
+  }
 
   @Before
-  public void setUp() throws InterruptedException {
-    EnvFactory.getEnv().initBeforeTest();
+  public void setUp() throws Exception {
+    super.setUp();
+    EnvFactory.getEnv().initClusterEnvironment();
   }
 
   @After
   public void tearDown() throws Exception {
-    EnvFactory.getEnv().cleanAfterTest();
+    EnvFactory.getEnv().cleanClusterEnvironment();
+    super.tearDown();
   }
 
   @Test
@@ -74,21 +78,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret1[count], ans);
           count++;
         }
@@ -122,21 +126,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -172,21 +176,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret[count], ans);
           count++;
         }
@@ -210,21 +214,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -259,21 +263,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret[count], ans);
           count++;
         }
@@ -288,21 +292,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -342,21 +346,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret[count], ans);
           count++;
         }
@@ -371,21 +375,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -421,21 +425,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret[count], ans);
           count++;
         }
@@ -451,21 +455,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -505,21 +509,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret[count], ans);
           count++;
         }
@@ -535,21 +539,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret2[count], ans);
           count++;
         }
@@ -566,21 +570,21 @@ public class IoTDBTagAlterIT {
       try {
         while (resultSet.next()) {
           String ans =
-              resultSet.getString("timeseries")
+              resultSet.getString(ColumnHeaderConstant.TIMESERIES)
                   + ","
-                  + resultSet.getString("alias")
+                  + resultSet.getString(ColumnHeaderConstant.ALIAS)
                   + ","
-                  + resultSet.getString("storage group")
+                  + resultSet.getString(ColumnHeaderConstant.DATABASE)
                   + ","
-                  + resultSet.getString("dataType")
+                  + resultSet.getString(ColumnHeaderConstant.DATATYPE)
                   + ","
-                  + resultSet.getString("encoding")
+                  + resultSet.getString(ColumnHeaderConstant.ENCODING)
                   + ","
-                  + resultSet.getString("compression")
+                  + resultSet.getString(ColumnHeaderConstant.COMPRESSION)
                   + ","
-                  + resultSet.getString("tags")
+                  + resultSet.getString(ColumnHeaderConstant.TAGS)
                   + ","
-                  + resultSet.getString("attributes");
+                  + resultSet.getString(ColumnHeaderConstant.ATTRIBUTES);
           assertEquals(ret3[count], ans);
           count++;
         }

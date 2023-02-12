@@ -19,13 +19,10 @@
 
 package org.apache.iotdb.confignode.persistence.schema;
 
-import org.apache.iotdb.common.rpc.thrift.TSStatus;
+import org.apache.iotdb.commons.exception.MetadataException;
 import org.apache.iotdb.commons.utils.TestOnly;
-import org.apache.iotdb.confignode.consensus.request.write.CreateSchemaTemplatePlan;
-import org.apache.iotdb.confignode.rpc.thrift.TGetAllTemplatesResp;
-import org.apache.iotdb.confignode.rpc.thrift.TGetTemplateResp;
+import org.apache.iotdb.db.exception.metadata.template.UndefinedTemplateException;
 import org.apache.iotdb.db.metadata.template.Template;
-import org.apache.iotdb.rpc.TSStatusCode;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -46,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class TemplateTable {
@@ -55,78 +53,86 @@ public class TemplateTable {
   // StorageGroup read write lock
   private final ReentrantReadWriteLock templateReadWriteLock;
 
+  private final AtomicInteger templateIdGenerator;
   private final Map<String, Template> templateMap = new ConcurrentHashMap<>();
+  private final Map<Integer, Template> templateIdMap = new ConcurrentHashMap<>();
 
-  private final String snapshotFileName = "template_info.bin";
+  private static final String SNAPSHOT_FILENAME = "template_info.bin";
 
-  public TemplateTable() throws IOException {
+  public TemplateTable() {
     templateReadWriteLock = new ReentrantReadWriteLock();
+    templateIdGenerator = new AtomicInteger(0);
   }
 
-  public TGetTemplateResp getMatchedTemplateByName(String name) {
-    TGetTemplateResp resp = new TGetTemplateResp();
+  public Template getTemplate(String name) throws MetadataException {
     try {
       templateReadWriteLock.readLock().lock();
       Template template = templateMap.get(name);
-      resp.setStatus(new TSStatus(TSStatusCode.SUCCESS_STATUS.getStatusCode()));
-      resp.setTemplate(Template.template2ByteBuffer(template));
-    } catch (IOException e) {
-      LOGGER.warn("Error TemplateInfo name", e);
-      resp.setStatus(new TSStatus(TSStatusCode.TEMPLATE_NOT_EXIST.getStatusCode()));
+      if (template == null) {
+        throw new MetadataException(String.format("Template %s does not exist", name));
+      }
+      return templateMap.get(name);
     } finally {
       templateReadWriteLock.readLock().unlock();
     }
-    return resp;
   }
 
-  public TGetAllTemplatesResp getAllTemplate() {
-    TGetAllTemplatesResp resp = new TGetAllTemplatesResp();
+  public Template getTemplate(int templateId) throws MetadataException {
     try {
       templateReadWriteLock.readLock().lock();
-      List<ByteBuffer> templates = new ArrayList<>();
-      this.templateMap.values().stream()
-          .forEach(
-              item -> {
-                try {
-                  templates.add(Template.template2ByteBuffer(item));
-                } catch (IOException e) {
-                  resp.setStatus(new TSStatus(TSStatusCode.TEMPLATE_IMCOMPATIBLE.getStatusCode()));
-                  throw new RuntimeException(e);
-                }
-              });
-      resp.setTemplateList(templates);
-      resp.setStatus(new TSStatus(TSStatusCode.SUCCESS_STATUS.getStatusCode()));
-    } catch (RuntimeException e) {
-      LOGGER.warn("Error TemplateInfo name", e);
-      resp.setStatus(new TSStatus(TSStatusCode.TEMPLATE_IMCOMPATIBLE.getStatusCode()));
+      Template template = templateIdMap.get(templateId);
+      if (template == null) {
+        throw new MetadataException(
+            String.format("Template with id=%s does not exist", templateId));
+      }
+      return template;
     } finally {
       templateReadWriteLock.readLock().unlock();
     }
-    return resp;
   }
 
-  public TSStatus createTemplate(CreateSchemaTemplatePlan createSchemaTemplatePlan) {
+  public List<Template> getAllTemplate() {
     try {
       templateReadWriteLock.readLock().lock();
-      Template template =
-          Template.byteBuffer2Template(ByteBuffer.wrap(createSchemaTemplatePlan.getTemplate()));
+      return new ArrayList<>(templateMap.values());
+    } finally {
+      templateReadWriteLock.readLock().unlock();
+    }
+  }
+
+  public void createTemplate(Template template) throws MetadataException {
+    try {
+      templateReadWriteLock.writeLock().lock();
       Template temp = this.templateMap.get(template.getName());
-      if (temp != null && template.getName().equalsIgnoreCase(temp.getName())) {
+      if (temp != null) {
         LOGGER.error(
             "Failed to create template, because template name {} is exists", template.getName());
-        return new TSStatus(TSStatusCode.DUPLICATED_TEMPLATE.getStatusCode());
+        throw new MetadataException("Duplicated template name: " + temp.getName());
       }
+      template.setId(templateIdGenerator.getAndIncrement());
       this.templateMap.put(template.getName(), template);
-      return new TSStatus(TSStatusCode.SUCCESS_STATUS.getStatusCode());
-    } catch (IOException | ClassNotFoundException e) {
-      LOGGER.warn("Error to create template", e);
-      return new TSStatus(TSStatusCode.CREATE_TEMPLATE_ERROR.getStatusCode());
+      templateIdMap.put(template.getId(), template);
     } finally {
-      templateReadWriteLock.readLock().unlock();
+      templateReadWriteLock.writeLock().unlock();
+    }
+  }
+
+  public void dropTemplate(String templateName) throws MetadataException {
+    try {
+      templateReadWriteLock.writeLock().lock();
+      Template temp = this.templateMap.remove(templateName);
+      if (temp == null) {
+        LOGGER.error("Undefined template {}", templateName);
+        throw new UndefinedTemplateException(templateName);
+      }
+      templateIdMap.remove(temp.getId());
+    } finally {
+      templateReadWriteLock.writeLock().unlock();
     }
   }
 
   private void serialize(OutputStream outputStream) throws IOException {
+    ReadWriteIOUtils.write(templateIdGenerator.get(), outputStream);
     ReadWriteIOUtils.write(templateMap.size(), outputStream);
     for (Map.Entry<String, Template> entry : templateMap.entrySet()) {
       serializeTemplate(entry.getValue(), outputStream);
@@ -135,8 +141,7 @@ public class TemplateTable {
 
   private void serializeTemplate(Template template, OutputStream outputStream) {
     try {
-      ByteBuffer dataBuffer = template.serialize();
-      ReadWriteIOUtils.write(dataBuffer, outputStream);
+      template.serialize(outputStream);
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -144,24 +149,24 @@ public class TemplateTable {
 
   private void deserialize(InputStream inputStream) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.wrap(IOUtils.toByteArray(inputStream));
+    templateIdGenerator.set(ReadWriteIOUtils.readInt(byteBuffer));
     int size = ReadWriteIOUtils.readInt(byteBuffer);
     while (size > 0) {
       Template template = deserializeTemplate(byteBuffer);
       templateMap.put(template.getName(), template);
+      templateIdMap.put(template.getId(), template);
       size--;
     }
   }
 
   private Template deserializeTemplate(ByteBuffer byteBuffer) {
     Template template = new Template();
-    int length = ReadWriteIOUtils.readInt(byteBuffer);
-    byte[] data = ReadWriteIOUtils.readBytes(byteBuffer, length);
-    template.deserialize(ByteBuffer.wrap(data));
+    template.deserialize(byteBuffer);
     return template;
   }
 
   public boolean processTakeSnapshot(File snapshotDir) throws IOException {
-    File snapshotFile = new File(snapshotDir, snapshotFileName);
+    File snapshotFile = new File(snapshotDir, SNAPSHOT_FILENAME);
     if (snapshotFile.exists() && snapshotFile.isFile()) {
       LOGGER.error(
           "template failed to take snapshot, because snapshot file [{}] is already exist.",
@@ -192,7 +197,7 @@ public class TemplateTable {
   }
 
   public void processLoadSnapshot(File snapshotDir) throws IOException {
-    File snapshotFile = new File(snapshotDir, snapshotFileName);
+    File snapshotFile = new File(snapshotDir, SNAPSHOT_FILENAME);
     if (!snapshotFile.exists() || !snapshotFile.isFile()) {
       LOGGER.error(
           "Failed to load snapshot,snapshot file [{}] is not exist.",

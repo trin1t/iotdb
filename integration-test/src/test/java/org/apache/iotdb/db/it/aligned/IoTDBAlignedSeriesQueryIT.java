@@ -18,7 +18,8 @@
  */
 package org.apache.iotdb.db.it.aligned;
 
-import org.apache.iotdb.it.env.ConfigFactory;
+import org.apache.iotdb.db.it.utils.AlignedWriteUtil;
+import org.apache.iotdb.db.mpp.common.header.ColumnHeaderConstant;
 import org.apache.iotdb.it.env.EnvFactory;
 import org.apache.iotdb.it.framework.IoTDBTestRunner;
 import org.apache.iotdb.itbase.category.ClusterIT;
@@ -27,7 +28,6 @@ import org.apache.iotdb.itbase.category.LocalStandaloneIT;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -37,12 +37,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import static org.apache.iotdb.db.constant.TestConstant.avg;
 import static org.apache.iotdb.db.constant.TestConstant.count;
@@ -53,13 +49,9 @@ import static org.apache.iotdb.db.constant.TestConstant.maxValue;
 import static org.apache.iotdb.db.constant.TestConstant.minTime;
 import static org.apache.iotdb.db.constant.TestConstant.minValue;
 import static org.apache.iotdb.db.constant.TestConstant.sum;
-import static org.apache.iotdb.itbase.constant.TestConstant.DATA_TYPE_STR;
-import static org.apache.iotdb.itbase.constant.TestConstant.TIMESEIRES_STR;
 import static org.apache.iotdb.itbase.constant.TestConstant.TIMESTAMP_STR;
-import static org.apache.iotdb.itbase.constant.TestConstant.VALUE_STR;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(IoTDBTestRunner.class)
@@ -67,282 +59,23 @@ import static org.junit.Assert.fail;
 public class IoTDBAlignedSeriesQueryIT {
 
   private static final double DELTA = 1e-6;
-  protected static boolean enableSeqSpaceCompaction;
-  protected static boolean enableUnseqSpaceCompaction;
-  protected static boolean enableCrossSpaceCompaction;
 
   @BeforeClass
   public static void setUp() throws Exception {
-    enableSeqSpaceCompaction = ConfigFactory.getConfig().isEnableSeqSpaceCompaction();
-    enableUnseqSpaceCompaction = ConfigFactory.getConfig().isEnableUnseqSpaceCompaction();
-    enableCrossSpaceCompaction = ConfigFactory.getConfig().isEnableCrossSpaceCompaction();
-    ConfigFactory.getConfig().setEnableSeqSpaceCompaction(false);
-    ConfigFactory.getConfig().setEnableUnseqSpaceCompaction(false);
-    ConfigFactory.getConfig().setEnableCrossSpaceCompaction(false);
-    EnvFactory.getEnv().initBeforeClass();
+    EnvFactory.getEnv()
+        .getConfig()
+        .getCommonConfig()
+        .setEnableSeqSpaceCompaction(false)
+        .setEnableUnseqSpaceCompaction(false)
+        .setEnableCrossSpaceCompaction(false)
+        .setMaxTsBlockLineNumber(3);
+    EnvFactory.getEnv().initClusterEnvironment();
     AlignedWriteUtil.insertData();
   }
 
   @AfterClass
   public static void tearDown() throws Exception {
-    EnvFactory.getEnv().cleanAfterClass();
-    ConfigFactory.getConfig().setEnableSeqSpaceCompaction(enableSeqSpaceCompaction);
-    ConfigFactory.getConfig().setEnableUnseqSpaceCompaction(enableUnseqSpaceCompaction);
-    ConfigFactory.getConfig().setEnableCrossSpaceCompaction(enableCrossSpaceCompaction);
-  }
-
-  // ----------------------------------------Last Query-----------------------------------------
-  @Test
-  public void selectAllAlignedLastTest() {
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList(
-                "23,root.sg1.d1.s1,230000.0,FLOAT",
-                "40,root.sg1.d1.s2,40,INT32",
-                "30,root.sg1.d1.s3,30,INT64",
-                "30,root.sg1.d1.s4,false,BOOLEAN",
-                "40,root.sg1.d1.s5,aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet = statement.executeQuery("select last * from root.sg1.d1")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectAllAlignedAndNonAlignedLastTest() {
-
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList(
-                "23,root.sg1.d1.s1,230000.0,FLOAT",
-                "40,root.sg1.d1.s2,40,INT32",
-                "30,root.sg1.d1.s3,30,INT64",
-                "30,root.sg1.d1.s4,false,BOOLEAN",
-                "40,root.sg1.d1.s5,aligned_test40,TEXT",
-                "20,root.sg1.d2.s1,20.0,FLOAT",
-                "40,root.sg1.d2.s2,40,INT32",
-                "30,root.sg1.d2.s3,30,INT64",
-                "30,root.sg1.d2.s4,false,BOOLEAN",
-                "40,root.sg1.d2.s5,non_aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet = statement.executeQuery("select last * from root.sg1.*")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectAllAlignedLastWithTimeFilterTest() {
-
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList("40,root.sg1.d1.s2,40,INT32", "40,root.sg1.d1.s5,aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet =
-          statement.executeQuery("select last * from root.sg1.d1 where time > 30")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectSomeAlignedLastTest1() {
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList(
-                "23,root.sg1.d1.s1,230000.0,FLOAT",
-                "30,root.sg1.d1.s4,false,BOOLEAN",
-                "40,root.sg1.d1.s5,aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet =
-          statement.executeQuery("select last s1, s4, s5 from root.sg1.d1")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectSomeAlignedLastTest2() {
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList("23,root.sg1.d1.s1,230000.0,FLOAT", "30,root.sg1.d1.s4,false,BOOLEAN"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet = statement.executeQuery("select last s1, s4 from root.sg1.d1")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectSomeAlignedLastWithTimeFilterTest() {
-
-    Set<String> retSet =
-        new HashSet<>(Collections.singletonList("40,root.sg1.d1.s5,aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      try (ResultSet resultSet =
-          statement.executeQuery("select last s1, s4, s5 from root.sg1.d1 where time > 30")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
-  }
-
-  @Test
-  public void selectSomeAlignedAndNonAlignedLastWithTimeFilterTest() {
-
-    Set<String> retSet =
-        new HashSet<>(
-            Arrays.asList(
-                "40,root.sg1.d1.s5,aligned_test40,TEXT",
-                "40,root.sg1.d2.s5,non_aligned_test40,TEXT"));
-
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      // 1 4 5
-      try (ResultSet resultSet =
-          statement.executeQuery(
-              "select last d2.s5, d1.s4, d2.s1, d1.s5, d2.s4, d1.s1 from root.sg1 where time > 30")) {
-        int cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString(TIMESEIRES_STR)
-                  + ","
-                  + resultSet.getString(VALUE_STR)
-                  + ","
-                  + resultSet.getString(DATA_TYPE_STR);
-          assertTrue(ans, retSet.contains(ans));
-          cnt++;
-        }
-        assertEquals(retSet.size(), cnt);
-      }
-
-    } catch (SQLException e) {
-      e.printStackTrace();
-      fail(e.getMessage());
-    }
+    EnvFactory.getEnv().cleanClusterEnvironment();
   }
 
   // ------------------------------Raw Query Without Value Filter----------------------------------
@@ -860,8 +593,6 @@ public class IoTDBAlignedSeriesQueryIT {
   }
 
   // ------------------------------Raw Query With Value Filter-------------------------------------
-  // TODO add these back when value filter is done in new cluster
-
   @Test
   public void selectAllAlignedWithValueFilterTest1() {
 
@@ -2458,7 +2189,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void selectAllAlignedWithValueFilterAlignByDeviceTest1() {
     String[] retArray =
@@ -2509,7 +2239,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void selectAllAlignedWithValueFilterAlignByDeviceTest2() {
     String[] retArray =
@@ -2558,7 +2287,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void selectAllAlignedWithTimeAndValueFilterAlignByDeviceTest1() {
     String[] retArray =
@@ -2607,7 +2335,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void selectSomeAlignedWithValueFilterAlignByDeviceTest1() {
     String[] retArray =
@@ -2662,7 +2389,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void selectSomeAlignedWithValueFilterAlignByDeviceTest2() {
     String[] retArray =
@@ -2869,7 +2595,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void countAlignedWithValueFilterAlignByDeviceTest() {
     String[] retArray = new String[] {"root.sg1.d1", "11"};
@@ -2907,7 +2632,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void aggregationFuncAlignedWithValueFilterAlignByDeviceTest() {
     String[] retArray =
@@ -2961,7 +2685,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void countAllAlignedWithValueFilterAlignByDeviceTest() {
     String[] retArray = new String[] {"root.sg1.d1", "6", "6", "9", "11", "6"};
@@ -3001,7 +2724,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void aggregationAllAlignedWithValueFilterAlignByDeviceTest() {
     String[] retArray = new String[] {"root.sg1.d1", "160016.0", "11", "1", "13"};
@@ -3063,7 +2785,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(count("s1"))
                   + ","
@@ -3100,7 +2822,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(maxValue("s3"))
                   + ","
@@ -3139,7 +2861,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(lastValue("s4"))
                   + ","
@@ -3173,7 +2895,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(count("s1"))
                   + ","
@@ -3234,7 +2956,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(count("s1"))
                   + ","
@@ -3271,7 +2993,7 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(count("s1"))
                   + ","
@@ -3286,7 +3008,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // Remove after supporting value filter
   @Test
   public void countSumAvgValueFillAlignByDeviceTest() throws SQLException {
     String[] retArray =
@@ -3312,97 +3033,13 @@ public class IoTDBAlignedSeriesQueryIT {
           String ans =
               resultSet.getString(TIMESTAMP_STR)
                   + ","
-                  + resultSet.getString("Device")
+                  + resultSet.getString(ColumnHeaderConstant.DEVICE)
                   + ","
                   + resultSet.getString(count("s1"))
                   + ","
                   + resultSet.getString(sum("s2"))
                   + ","
                   + resultSet.getString(avg("s1"));
-          Assert.assertEquals(retArray[cnt], ans);
-          cnt++;
-        }
-        Assert.assertEquals(retArray.length, cnt);
-      }
-    }
-  }
-
-  // TODO we may never support this in mpp
-  @Ignore
-  @Test
-  public void maxMinValueTimePreviousUntilLastFillAlignByDeviceTest() throws SQLException {
-    String[] retArray =
-        new String[] {
-          "1,root.sg1.d1,30000,6.0,9,3",
-          "11,root.sg1.d1,130000,11.0,20,11",
-          "21,root.sg1.d1,230000,230000.0,null,23",
-          "31,root.sg1.d1,null,null,null,null"
-        };
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      int cnt;
-      try (ResultSet resultSet =
-          statement.executeQuery(
-              "select max_value(s3), min_value(s1), max_time(s2), min_time(s3) from root.sg1.d1 "
-                  + "where s1 > 5 and time < 35 GROUP BY ([1, 41), 10ms) FILL(previousUntilLast) align by device")) {
-        cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString("Device")
-                  + ","
-                  + resultSet.getString(maxValue("s3"))
-                  + ","
-                  + resultSet.getString(minValue("s1"))
-                  + ","
-                  + resultSet.getString(maxTime("s2"))
-                  + ","
-                  + resultSet.getString(minTime("s3"));
-          Assert.assertEquals(retArray[cnt], ans);
-          cnt++;
-        }
-        Assert.assertEquals(retArray.length, cnt);
-      }
-    }
-  }
-
-  // TODO need to discuss fill function
-  @Ignore
-  @Test
-  public void maxMinValueTimeValueFillAlignByDeviceTest() throws SQLException {
-    String[] retArray =
-        new String[] {
-          "1,root.sg1.d1,30000,30000.0,null,3",
-          "6,root.sg1.d1,10,6.0,10,6",
-          "11,root.sg1.d1,130000,11.0,15,11",
-          "16,root.sg1.d1,20,16.0,20,16",
-          "21,root.sg1.d1,230000,230000.0,null,21",
-          "26,root.sg1.d1,29,null,null,26"
-        };
-    try (Connection connection = EnvFactory.getEnv().getConnection();
-        Statement statement = connection.createStatement()) {
-
-      int cnt;
-      try (ResultSet resultSet =
-          statement.executeQuery(
-              "select max_value(s3), min_value(s1), max_time(s2), min_time(s3) from root.sg1.d1 "
-                  + "where s3 > 5 and time < 30 GROUP BY ([1, 31), 5ms) FILL ('fill string') align by device")) {
-        cnt = 0;
-        while (resultSet.next()) {
-          String ans =
-              resultSet.getString(TIMESTAMP_STR)
-                  + ","
-                  + resultSet.getString("Device")
-                  + ","
-                  + resultSet.getString(maxValue("s3"))
-                  + ","
-                  + resultSet.getString(minValue("s1"))
-                  + ","
-                  + resultSet.getString(maxTime("s2"))
-                  + ","
-                  + resultSet.getString(minTime("s3"));
           Assert.assertEquals(retArray[cnt], ans);
           cnt++;
         }
@@ -4338,7 +3975,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // TODO Semantic error
   @Test
   public void groupByWithoutAggregationFuncTest() {
     try (Connection connection = EnvFactory.getEnv().getConnection();
@@ -4356,7 +3992,6 @@ public class IoTDBAlignedSeriesQueryIT {
     }
   }
 
-  // TODO Semantic error
   @Test
   public void negativeOrZeroTimeIntervalTest() {
     try (Connection connection = EnvFactory.getEnv().getConnection();

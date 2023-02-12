@@ -20,7 +20,6 @@ package org.apache.iotdb.db.rescon;
 
 import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.MetadataException;
-import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.conf.IoTDBConfig;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
 import org.apache.iotdb.db.constant.TestConstant;
@@ -31,7 +30,6 @@ import org.apache.iotdb.db.engine.storagegroup.TsFileResourceStatus;
 import org.apache.iotdb.db.engine.storagegroup.timeindex.TimeIndexLevel;
 import org.apache.iotdb.db.exception.StorageEngineException;
 import org.apache.iotdb.db.query.control.FileReaderManager;
-import org.apache.iotdb.db.service.IoTDB;
 import org.apache.iotdb.db.utils.EnvironmentUtils;
 import org.apache.iotdb.tsfile.exception.write.WriteProcessException;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
@@ -51,7 +49,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.iotdb.commons.conf.IoTDBConstant.PATH_SEPARATOR;
@@ -74,15 +71,13 @@ public class ResourceManagerTest {
   List<TsFileResource> unseqResources = new ArrayList<>();
 
   private static final IoTDBConfig CONFIG = IoTDBDescriptor.getInstance().getConfig();
-  private TsFileResourceManager tsFileResourceManager = TsFileResourceManager.getInstance();
-  private double prevTimeIndexMemoryProportion;
-  private double prevTimeIndexMemoryThreshold;
+  private final TsFileResourceManager tsFileResourceManager = TsFileResourceManager.getInstance();
+  private long prevTimeIndexMemoryThreshold;
   private TimeIndexLevel timeIndexLevel;
 
   @Before
   public void setUp() throws IOException, WriteProcessException, MetadataException {
-    IoTDB.configManager.init();
-    prevTimeIndexMemoryProportion = CONFIG.getTimeIndexMemoryProportion();
+    prevTimeIndexMemoryThreshold = CONFIG.getAllocateMemoryForTimeIndex();
     timeIndexLevel = CONFIG.getTimeIndexLevel();
     prepareSeries();
   }
@@ -92,14 +87,10 @@ public class ResourceManagerTest {
     removeFiles();
     seqResources.clear();
     unseqResources.clear();
-    CONFIG.setTimeIndexMemoryProportion(prevTimeIndexMemoryProportion);
     CONFIG.setTimeIndexLevel(String.valueOf(timeIndexLevel));
-    prevTimeIndexMemoryThreshold =
-        prevTimeIndexMemoryProportion * CONFIG.getAllocateMemoryForRead();
     tsFileResourceManager.setTimeIndexMemoryThreshold(prevTimeIndexMemoryThreshold);
     ChunkCache.getInstance().clear();
     TimeSeriesMetadataCache.getInstance().clear();
-    IoTDB.configManager.clear();
     TsFileResourceManager.getInstance().clear();
     EnvironmentUtils.cleanAllDir();
   }
@@ -114,18 +105,6 @@ public class ResourceManagerTest {
     deviceIds = new String[deviceNum];
     for (int i = 0; i < deviceNum; i++) {
       deviceIds[i] = RESOURCE_MANAGER_TEST_SG + PATH_SEPARATOR + "device" + i;
-    }
-    IoTDB.schemaProcessor.setStorageGroup(new PartialPath(RESOURCE_MANAGER_TEST_SG));
-    for (String device : deviceIds) {
-      for (MeasurementSchema measurementSchema : measurementSchemas) {
-        PartialPath devicePath = new PartialPath(device);
-        IoTDB.schemaProcessor.createTimeseries(
-            devicePath.concatNode(measurementSchema.getMeasurementId()),
-            measurementSchema.getType(),
-            measurementSchema.getEncodingType(),
-            measurementSchema.getCompressor(),
-            Collections.emptyMap());
-      }
     }
   }
 
@@ -360,7 +339,6 @@ public class ResourceManagerTest {
   @Test(expected = RuntimeException.class)
   public void testAllFileTimeIndexDegrade() throws IOException, WriteProcessException {
     long reducedMemory = 0;
-    CONFIG.setTimeIndexLevel(String.valueOf(TimeIndexLevel.FILE_TIME_INDEX));
     double curTimeIndexMemoryThreshold = 322;
     tsFileResourceManager.setTimeIndexMemoryThreshold(curTimeIndexMemoryThreshold);
     try {
@@ -377,13 +355,12 @@ public class ResourceManagerTest {
                         + 0
                         + ".tsfile"));
         TsFileResource tsFileResource = new TsFileResource(file);
-        tsFileResource.setStatus(TsFileResourceStatus.CLOSED);
-        tsFileResource.updatePlanIndexes((long) i);
-        seqResources.add(tsFileResource);
         assertEquals(
-            TimeIndexLevel.FILE_TIME_INDEX,
+            TimeIndexLevel.DEVICE_TIME_INDEX,
             TimeIndexLevel.valueOf(tsFileResource.getTimeIndexType()));
+        seqResources.add(tsFileResource);
         long previousRamSize = tsFileResource.calculateRamSize();
+        System.out.println(previousRamSize);
         prepareFile(tsFileResource, i * ptNum, ptNum, 0);
         tsFileResourceManager.registerSealedTsFileResource(tsFileResource);
         assertEquals(
@@ -392,7 +369,7 @@ public class ResourceManagerTest {
         reducedMemory = previousRamSize - tsFileResource.calculateRamSize();
       }
     } catch (RuntimeException e) {
-      assertEquals(0, reducedMemory);
+      assertEquals(1072, reducedMemory);
       assertEquals(7, seqResources.size());
       throw e;
     }

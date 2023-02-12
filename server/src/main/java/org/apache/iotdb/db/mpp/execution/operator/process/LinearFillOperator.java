@@ -87,7 +87,7 @@ public class LinearFillOperator implements ProcessOperator {
     // make sure we call child.next() at most once
     if (cachedTsBlock.isEmpty()) {
       canCallNext = false;
-      TsBlock nextTsBlock = child.next();
+      TsBlock nextTsBlock = child.nextWithTimer();
       // child operator's calculation is not finished, so we just return null
       if (nextTsBlock == null || nextTsBlock.isEmpty()) {
         return nextTsBlock;
@@ -144,7 +144,7 @@ public class LinearFillOperator implements ProcessOperator {
   @Override
   public boolean hasNext() {
     // if child.hasNext() return false, it means that there is no more tsBlocks
-    noMoreTsBlock = !child.hasNext();
+    noMoreTsBlock = !child.hasNextWithTimer();
     // if there is more tsBlock, we can call child.next() once
     canCallNext = !noMoreTsBlock;
     return !cachedTsBlock.isEmpty() || !noMoreTsBlock;
@@ -158,6 +158,26 @@ public class LinearFillOperator implements ProcessOperator {
   @Override
   public boolean isFinished() {
     return cachedTsBlock.isEmpty() && child.isFinished();
+  }
+
+  @Override
+  public long calculateMaxPeekMemory() {
+    // while doing linear fill, we may need to copy the corresponding column if there exists null
+    // values, and we may also need to cache next TsBlock to get next not null value
+    // so the max peek memory may be triple or more, here we just use 3 as the estimated factor
+    // because in most cases, we will get next not null value in next TsBlock
+    return 3 * child.calculateMaxPeekMemory() + child.calculateRetainedSizeAfterCallingNext();
+  }
+
+  @Override
+  public long calculateMaxReturnSize() {
+    return child.calculateMaxReturnSize();
+  }
+
+  @Override
+  public long calculateRetainedSizeAfterCallingNext() {
+    // we can safely ignore two lines cached in LinearFill
+    return child.calculateRetainedSizeAfterCallingNext();
   }
 
   /**
@@ -192,7 +212,7 @@ public class LinearFillOperator implements ProcessOperator {
     if (canCallNext) { // if we can call child.next(), we call that and cache it in
       // cachedTsBlock
       canCallNext = false;
-      TsBlock nextTsBlock = child.next();
+      TsBlock nextTsBlock = child.nextWithTimer();
       // child operator's calculation is not finished, so we just return null
       if (nextTsBlock == null || nextTsBlock.isEmpty()) {
         return false;

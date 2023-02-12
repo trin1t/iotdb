@@ -32,8 +32,9 @@ public interface IDriverScheduler {
    *
    * @param queryId the queryId these instances belong to.
    * @param instances the submitted instances.
+   * @param timeOut the query timeout
    */
-  void submitDrivers(QueryId queryId, List<IDriver> instances);
+  void submitDrivers(QueryId queryId, List<IDriver> instances, long timeOut);
 
   /**
    * Abort all the instances in this query.
@@ -49,13 +50,4 @@ public interface IDriverScheduler {
    * @param instanceId the id of the fragment instance to be aborted.
    */
   void abortFragmentInstance(FragmentInstanceId instanceId);
-
-  /**
-   * Return the schedule priority of a fragment.
-   *
-   * @param instanceId the fragment instance id.
-   * @return the schedule priority.
-   * @throws IllegalStateException if the instance has already been cleared.
-   */
-  double getSchedulePriority(FragmentInstanceId instanceId);
 }

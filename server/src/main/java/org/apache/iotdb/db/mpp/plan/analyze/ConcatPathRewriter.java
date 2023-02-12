@@ -19,20 +19,17 @@
 package org.apache.iotdb.db.mpp.plan.analyze;
 
 import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.commons.path.PathPatternTree;
 import org.apache.iotdb.db.exception.sql.SemanticException;
 import org.apache.iotdb.db.exception.sql.StatementAnalyzeException;
-import org.apache.iotdb.db.mpp.common.schematree.PathPatternTree;
 import org.apache.iotdb.db.mpp.plan.expression.Expression;
 import org.apache.iotdb.db.mpp.plan.statement.Statement;
-import org.apache.iotdb.db.mpp.plan.statement.component.FilterNullComponent;
 import org.apache.iotdb.db.mpp.plan.statement.component.ResultColumn;
 import org.apache.iotdb.db.mpp.plan.statement.component.SelectComponent;
 import org.apache.iotdb.db.mpp.plan.statement.crud.QueryStatement;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * This rewriter:
@@ -55,41 +52,31 @@ public class ConcatPathRewriter {
     List<PartialPath> prefixPaths = queryStatement.getFromComponent().getPrefixPaths();
 
     if (queryStatement.isAlignByDevice()) {
-      queryStatement.getSelectComponent().getResultColumns().stream()
-          .map(ResultColumn::getExpression)
-          .forEach(
-              expression ->
-                  ExpressionAnalyzer.constructPatternTreeFromExpression(
-                      expression, prefixPaths, patternTree));
+      for (ResultColumn resultColumn : queryStatement.getSelectComponent().getResultColumns()) {
+        ExpressionAnalyzer.constructPatternTreeFromExpression(
+            resultColumn.getExpression(), prefixPaths, patternTree);
+      }
+      if (queryStatement.hasGroupByExpression()) {
+        ExpressionAnalyzer.constructPatternTreeFromExpression(
+            queryStatement.getGroupByComponent().getControlColumnExpression(),
+            prefixPaths,
+            patternTree);
+      }
     } else {
       // concat SELECT with FROM
       List<ResultColumn> resultColumns =
           concatSelectWithFrom(
               queryStatement.getSelectComponent(), prefixPaths, queryStatement.isGroupByLevel());
       queryStatement.getSelectComponent().setResultColumns(resultColumns);
-    }
 
-    // concat WITHOUT NULL with FROM
-    if (queryStatement.getFilterNullComponent() != null
-        && !queryStatement.getFilterNullComponent().getWithoutNullColumns().isEmpty()) {
-      FilterNullComponent filterNullComponent = queryStatement.getFilterNullComponent();
-      Map<String, Expression> aliasToColumnMap =
-          queryStatement.getSelectComponent().getAliasToColumnMap();
-
-      // replace alias
-      List<Expression> replacedWithoutNullColumns =
-          filterNullComponent.getWithoutNullColumns().stream()
-              .map(
-                  expression ->
-                      aliasToColumnMap.getOrDefault(expression.getExpressionString(), expression))
-              .collect(Collectors.toList());
-
-      if (queryStatement.isAlignByDevice()) {
-        queryStatement.getFilterNullComponent().setWithoutNullColumns(replacedWithoutNullColumns);
-      } else {
-        List<Expression> withoutNullColumns =
-            concatWithoutNullColumnsWithFrom(replacedWithoutNullColumns, prefixPaths);
-        queryStatement.getFilterNullComponent().setWithoutNullColumns(withoutNullColumns);
+      // concat GROUP BY VARIATION with FROM
+      if (queryStatement.hasGroupByExpression()) {
+        queryStatement
+            .getGroupByComponent()
+            .setControlColumnExpression(
+                contactGroupByWithFrom(
+                    queryStatement.getGroupByComponent().getControlColumnExpression(),
+                    prefixPaths));
       }
     }
 
@@ -98,6 +85,13 @@ public class ConcatPathRewriter {
       ExpressionAnalyzer.constructPatternTreeFromExpression(
           queryStatement.getWhereCondition().getPredicate(), prefixPaths, patternTree);
     }
+
+    // concat HAVING with FROM
+    if (queryStatement.getHavingCondition() != null) {
+      ExpressionAnalyzer.constructPatternTreeFromExpression(
+          queryStatement.getHavingCondition().getPredicate(), prefixPaths, patternTree);
+    }
+
     return queryStatement;
   }
 
@@ -120,31 +114,22 @@ public class ConcatPathRewriter {
             String.format(
                 "alias '%s' can only be matched with one time series", resultColumn.getAlias()));
       }
-      resultColumns.addAll(
-          resultExpressions.stream()
-              .map(
-                  expression ->
-                      new ResultColumn(
-                          expression, resultColumn.getAlias(), resultColumn.getColumnType()))
-              .collect(Collectors.toList()));
+
+      for (Expression resultExpression : resultExpressions) {
+        resultColumns.add(
+            new ResultColumn(
+                resultExpression, resultColumn.getAlias(), resultColumn.getColumnType()));
+      }
     }
     return resultColumns;
   }
 
-  /**
-   * Concat the prefix path in the WITHOUT NULL clause and the suffix path in the FROM clause into a
-   * full path pattern. And construct pattern tree.
-   */
-  private List<Expression> concatWithoutNullColumnsWithFrom(
-      List<Expression> withoutNullColumns, List<PartialPath> prefixPaths)
-      throws StatementAnalyzeException {
-    // result after concat
-    return withoutNullColumns.stream()
-        .map(
-            expression ->
-                ExpressionAnalyzer.concatExpressionWithSuffixPaths(
-                    expression, prefixPaths, patternTree))
-        .flatMap(List::stream)
-        .collect(Collectors.toList());
+  private Expression contactGroupByWithFrom(Expression expression, List<PartialPath> prefixPaths) {
+    List<Expression> resultExpressions =
+        ExpressionAnalyzer.concatExpressionWithSuffixPaths(expression, prefixPaths, patternTree);
+    if (resultExpressions.size() != 1) {
+      throw new IllegalStateException("Expression in group by should indicate one value");
+    }
+    return resultExpressions.get(0);
   }
 }

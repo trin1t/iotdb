@@ -21,9 +21,9 @@ package org.apache.iotdb.db.mpp.plan.statement.metadata.template;
 
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.mpp.plan.analyze.QueryType;
-import org.apache.iotdb.db.mpp.plan.constant.StatementType;
 import org.apache.iotdb.db.mpp.plan.statement.IConfigStatement;
 import org.apache.iotdb.db.mpp.plan.statement.Statement;
+import org.apache.iotdb.db.mpp.plan.statement.StatementType;
 import org.apache.iotdb.db.mpp.plan.statement.StatementVisitor;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -94,7 +94,7 @@ public class CreateSchemaTemplateStatement extends Statement implements IConfigS
     this.alignedDeviceId = new HashSet<>();
   }
 
-  private CreateSchemaTemplateStatement(
+  public CreateSchemaTemplateStatement(
       String name,
       List<List<String>> measurements,
       List<List<TSDataType>> dataTypes,

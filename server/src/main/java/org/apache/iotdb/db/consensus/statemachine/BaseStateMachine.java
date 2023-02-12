@@ -29,7 +29,8 @@ import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class BaseStateMachine implements IStateMachine, IStateMachine.EventApi {
+public abstract class BaseStateMachine
+    implements IStateMachine, IStateMachine.EventApi, IStateMachine.RetryPolicy {
 
   private static final Logger logger = LoggerFactory.getLogger(BaseStateMachine.class);
 
@@ -44,6 +45,11 @@ public abstract class BaseStateMachine implements IStateMachine, IStateMachine.E
       throw new IllegalArgumentException("Unexpected IConsensusRequest!");
     }
     return instance;
+  }
+
+  @Override
+  public IConsensusRequest deserializeRequest(IConsensusRequest request) {
+    return getPlanNode(request);
   }
 
   protected PlanNode getPlanNode(IConsensusRequest request) {

@@ -20,11 +20,14 @@ package org.apache.iotdb.db.wal.buffer;
 
 import org.apache.iotdb.commons.concurrent.IoTDBThreadPoolFactory;
 import org.apache.iotdb.commons.concurrent.ThreadName;
+import org.apache.iotdb.commons.conf.CommonDescriptor;
 import org.apache.iotdb.db.conf.IoTDBConfig;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.write.DeleteDataNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.write.InsertNode;
 import org.apache.iotdb.db.utils.MmapUtil;
 import org.apache.iotdb.db.wal.exception.WALNodeClosedException;
+import org.apache.iotdb.db.wal.io.WALMetaData;
 import org.apache.iotdb.db.wal.utils.WALFileStatus;
 import org.apache.iotdb.db.wal.utils.listener.WALFlushListener;
 
@@ -35,7 +38,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -46,6 +48,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.apache.iotdb.db.wal.node.WALNode.DEFAULT_SEARCH_INDEX;
+
 /**
  * This buffer guarantees the concurrent safety and uses double buffers mechanism to accelerate
  * writes and avoid waiting for buffer syncing to disk.
@@ -53,7 +57,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class WALBuffer extends AbstractWALBuffer {
   private static final Logger logger = LoggerFactory.getLogger(WALBuffer.class);
   private static final IoTDBConfig config = IoTDBDescriptor.getInstance().getConfig();
-  private static final int WAL_BUFFER_SIZE = config.getWalBufferSize();
+  private static final int HALF_WAL_BUFFER_SIZE = config.getWalBufferSize() / 2;
+  private static final double FSYNC_BUFFER_RATIO = 0.95;
   private static final int QUEUE_CAPACITY = config.getWalBufferQueueCapacity();
 
   /** whether close method is called */
@@ -102,8 +107,8 @@ public class WALBuffer extends AbstractWALBuffer {
 
   private void allocateBuffers() {
     try {
-      workingBuffer = ByteBuffer.allocateDirect(WAL_BUFFER_SIZE / 2);
-      idleBuffer = ByteBuffer.allocateDirect(WAL_BUFFER_SIZE / 2);
+      workingBuffer = ByteBuffer.allocateDirect(HALF_WAL_BUFFER_SIZE);
+      idleBuffer = ByteBuffer.allocateDirect(HALF_WAL_BUFFER_SIZE);
     } catch (OutOfMemoryError e) {
       logger.error("Fail to allocate wal node-{}'s buffer because out of memory.", identifier, e);
       close();
@@ -129,20 +134,27 @@ public class WALBuffer extends AbstractWALBuffer {
   }
 
   // region Task of serializeThread
+  /** This info class traverses some extra info from serializeThread to syncBufferThread */
+  private static class SerializeInfo {
+    final WALMetaData metaData = new WALMetaData();
+    final List<WALFlushListener> fsyncListeners = new LinkedList<>();
+    WALFlushListener rollWALFileWriterListener = null;
+  }
+
   /** This task serializes WALEntry to workingBuffer and will call fsync at last. */
   private class SerializeTask implements Runnable {
-    private final IWALByteBufferView byteBufferVew = new ByteBufferView();
-    private final List<WALFlushListener> fsyncListeners = new LinkedList<>();
-
-    private int batchSize = 0;
-    private WALFlushListener rollWALFileWriterListener = null;
+    private final ByteBufferView byteBufferView = new ByteBufferView();
+    private final SerializeInfo info = new SerializeInfo();
+    private int totalSize = 0;
 
     @Override
     public void run() {
       try {
         serialize();
       } finally {
-        serializeThread.submit(new SerializeTask());
+        if (!isClosed) {
+          serializeThread.submit(new SerializeTask());
+        }
       }
     }
 
@@ -161,20 +173,21 @@ public class WALBuffer extends AbstractWALBuffer {
         Thread.currentThread().interrupt();
       }
 
-      // for better fsync performance, sleep a while to enlarge write batch
-      long fsyncDelay = config.getFsyncWalDelayInMs();
-      if (fsyncDelay > 0) {
+      // try to get more WALEntries with blocking interface to enlarge write batch
+      while (totalSize < HALF_WAL_BUFFER_SIZE * FSYNC_BUFFER_RATIO) {
+        WALEntry walEntry = null;
         try {
-          Thread.sleep(fsyncDelay);
+          // for better fsync performance, wait a while to enlarge write batch
+          walEntry = walEntries.poll(config.getFsyncWalDelayInMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
-          logger.warn("Interrupted when sleeping a while to enlarge wal write batch.");
+          logger.warn(
+              "Interrupted when waiting for taking WALEntry from blocking queue to serialize.");
           Thread.currentThread().interrupt();
         }
-      }
 
-      // try to get more WALEntries with non-blocking interface to enlarge write batch
-      while (walEntries.peek() != null && batchSize < QUEUE_CAPACITY) {
-        WALEntry walEntry = walEntries.poll();
+        if (walEntry == null) {
+          break;
+        }
         boolean returnFlag = handleWALEntry(walEntry);
         if (returnFlag) {
           return;
@@ -182,9 +195,8 @@ public class WALBuffer extends AbstractWALBuffer {
       }
 
       // call fsync at last and set fsyncListeners
-      if (batchSize > 0) {
-        fsyncWorkingBuffer(
-            currentSearchIndex, currentFileStatus, fsyncListeners, rollWALFileWriterListener);
+      if (totalSize > 0) {
+        fsyncWorkingBuffer(currentSearchIndex, currentFileStatus, info);
       }
     }
 
@@ -194,13 +206,12 @@ public class WALBuffer extends AbstractWALBuffer {
      */
     private boolean handleWALEntry(WALEntry walEntry) {
       if (walEntry.isSignal()) {
-        return handleSignalEntry((SignalWALEntry) walEntry);
+        return handleSignalEntry((WALSignalEntry) walEntry);
       }
 
       boolean success = handleInfoEntry(walEntry);
       if (success) {
-        ++batchSize;
-        fsyncListeners.add(walEntry.getWalFlushListener());
+        info.fsyncListeners.add(walEntry.getWalFlushListener());
       }
       return false;
     }
@@ -211,8 +222,10 @@ public class WALBuffer extends AbstractWALBuffer {
      * @return true if serialization is successful.
      */
     private boolean handleInfoEntry(WALEntry walEntry) {
+      int size = byteBufferView.position();
       try {
-        walEntry.serialize(byteBufferVew);
+        walEntry.serialize(byteBufferView);
+        size = byteBufferView.position() - size;
       } catch (Exception e) {
         logger.error(
             "Fail to serialize WALEntry to wal node-{}'s buffer, discard it.", identifier, e);
@@ -220,14 +233,20 @@ public class WALBuffer extends AbstractWALBuffer {
         return false;
       }
       // update search index
-      if (walEntry.getType() == WALEntryType.INSERT_TABLET_NODE
-          || walEntry.getType() == WALEntryType.INSERT_ROW_NODE) {
-        InsertNode insertNode = (InsertNode) walEntry.getValue();
-        if (insertNode.getSearchIndex() != InsertNode.NO_CONSENSUS_INDEX) {
-          currentSearchIndex = insertNode.getSearchIndex();
+      long searchIndex = DEFAULT_SEARCH_INDEX;
+      if (walEntry.getType().needSearch()) {
+        if (walEntry.getType() == WALEntryType.DELETE_DATA_NODE) {
+          searchIndex = ((DeleteDataNode) walEntry.getValue()).getSearchIndex();
+        } else {
+          searchIndex = ((InsertNode) walEntry.getValue()).getSearchIndex();
+        }
+        if (searchIndex != DEFAULT_SEARCH_INDEX) {
+          currentSearchIndex = searchIndex;
           currentFileStatus = WALFileStatus.CONTAINS_SEARCH_INDEX;
         }
       }
+      totalSize += size;
+      info.metaData.add(size, searchIndex);
       return true;
     }
 
@@ -235,24 +254,27 @@ public class WALBuffer extends AbstractWALBuffer {
      * @return true if fsyncWorkingBuffer has been called, which means this serialization task
      *     should be ended.
      */
-    private boolean handleSignalEntry(SignalWALEntry signalWALEntry) {
-      switch (signalWALEntry.getSignalType()) {
+    private boolean handleSignalEntry(WALSignalEntry walSignalEntry) {
+      switch (walSignalEntry.getType()) {
         case ROLL_WAL_LOG_WRITER_SIGNAL:
-          logger.debug("Handle roll log writer signal for wal node-{}.", identifier);
-          rollWALFileWriterListener = signalWALEntry.getWalFlushListener();
-          fsyncWorkingBuffer(
-              currentSearchIndex, currentFileStatus, fsyncListeners, rollWALFileWriterListener);
+          if (logger.isDebugEnabled()) {
+            logger.debug("Handle roll log writer signal for wal node-{}.", identifier);
+          }
+          info.rollWALFileWriterListener = walSignalEntry.getWalFlushListener();
+          fsyncWorkingBuffer(currentSearchIndex, currentFileStatus, info);
           return true;
         case CLOSE_SIGNAL:
-          logger.debug(
-              "Handle close signal for wal node-{}, there are {} entries left.",
-              identifier,
-              walEntries.size());
-          boolean dataExists = batchSize > 0;
-          if (dataExists) {
-            fsyncWorkingBuffer(
-                currentSearchIndex, currentFileStatus, fsyncListeners, rollWALFileWriterListener);
+          if (logger.isDebugEnabled()) {
+            logger.debug(
+                "Handle close signal for wal node-{}, there are {} entries left.",
+                identifier,
+                walEntries.size());
           }
+          boolean dataExists = totalSize > 0;
+          if (dataExists) {
+            fsyncWorkingBuffer(currentSearchIndex, currentFileStatus, info);
+          }
+          isClosed = true;
           return dataExists;
         default:
           return false;
@@ -265,6 +287,8 @@ public class WALBuffer extends AbstractWALBuffer {
    * serializeThread and this class is only used by serializeThread.
    */
   private class ByteBufferView implements IWALByteBufferView {
+    private int flushedBytesNum = 0;
+
     private void ensureEnoughSpace(int bytesNum) {
       if (workingBuffer.remaining() < bytesNum) {
         rollBuffer();
@@ -272,6 +296,7 @@ public class WALBuffer extends AbstractWALBuffer {
     }
 
     private void rollBuffer() {
+      flushedBytesNum += workingBuffer.position();
       syncWorkingBuffer(currentSearchIndex, currentFileStatus);
     }
 
@@ -333,6 +358,11 @@ public class WALBuffer extends AbstractWALBuffer {
       ensureEnoughSpace(Double.BYTES);
       workingBuffer.putDouble(value);
     }
+
+    @Override
+    public int position() {
+      return flushedBytesNum + workingBuffer.position();
+    }
   }
 
   /** Notice: this method only called when buffer is exhausted by SerializeTask. */
@@ -343,15 +373,9 @@ public class WALBuffer extends AbstractWALBuffer {
   }
 
   /** Notice: this method only called at the last of SerializeTask. */
-  private void fsyncWorkingBuffer(
-      long searchIndex,
-      WALFileStatus fileStatus,
-      List<WALFlushListener> fsyncListeners,
-      WALFlushListener rollWALFileWriterListener) {
+  private void fsyncWorkingBuffer(long searchIndex, WALFileStatus fileStatus, SerializeInfo info) {
     switchWorkingBufferToFlushing();
-    syncBufferThread.submit(
-        new SyncBufferTask(
-            searchIndex, fileStatus, true, fsyncListeners, rollWALFileWriterListener));
+    syncBufferThread.submit(new SyncBufferTask(searchIndex, fileStatus, true, info));
     currentFileStatus = WALFileStatus.CONTAINS_NONE_SEARCH_INDEX;
   }
 
@@ -383,78 +407,81 @@ public class WALBuffer extends AbstractWALBuffer {
     private final long searchIndex;
     private final WALFileStatus fileStatus;
     private final boolean forceFlag;
-    private final List<WALFlushListener> fsyncListeners;
-    private final WALFlushListener rollWALFileWriterListener;
+    private final SerializeInfo info;
 
     public SyncBufferTask(long searchIndex, WALFileStatus fileStatus, boolean forceFlag) {
-      this(searchIndex, fileStatus, forceFlag, null, null);
+      this(searchIndex, fileStatus, forceFlag, null);
     }
 
     public SyncBufferTask(
-        long searchIndex,
-        WALFileStatus fileStatus,
-        boolean forceFlag,
-        List<WALFlushListener> fsyncListeners,
-        WALFlushListener rollWALFileWriterListener) {
+        long searchIndex, WALFileStatus fileStatus, boolean forceFlag, SerializeInfo info) {
       this.searchIndex = searchIndex;
       this.fileStatus = fileStatus;
       this.forceFlag = forceFlag;
-      this.fsyncListeners = fsyncListeners == null ? Collections.emptyList() : fsyncListeners;
-      this.rollWALFileWriterListener = rollWALFileWriterListener;
+      this.info = info == null ? new SerializeInfo() : info;
     }
 
     @Override
     public void run() {
       currentWALFileWriter.updateFileStatus(fileStatus);
 
+      if (logger.isDebugEnabled()) {
+        double usedRatio = (double) syncingBuffer.position() / syncingBuffer.capacity();
+        logger.debug(
+            "Sync wal buffer, forceFlag: {}, buffer used: {} / {} = {}%",
+            forceFlag, syncingBuffer.position(), syncingBuffer.capacity(), usedRatio * 100);
+      }
+
       // flush buffer to os
       try {
-        currentWALFileWriter.write(syncingBuffer);
+        currentWALFileWriter.write(syncingBuffer, info.metaData);
       } catch (Throwable e) {
         logger.error(
-            "Fail to sync wal node-{}'s buffer, change system mode to read-only.", identifier, e);
-        config.setReadOnly(true);
+            "Fail to sync wal node-{}'s buffer, change system mode to error.", identifier, e);
+        CommonDescriptor.getInstance().getConfig().handleUnrecoverableError();
       } finally {
         switchSyncingBufferToIdle();
       }
 
-      // force os cache to the storage device
-      if (forceFlag) {
-        try {
-          currentWALFileWriter.force();
-        } catch (IOException e) {
-          logger.error(
-              "Fail to fsync wal node-{}'s log writer, change system mode to read-only.",
-              identifier,
-              e);
-          for (WALFlushListener fsyncListener : fsyncListeners) {
-            fsyncListener.fail(e);
-          }
-          config.setReadOnly(true);
-        }
-        // notify all waiting listeners
-        for (WALFlushListener fsyncListener : fsyncListeners) {
-          fsyncListener.succeed();
-        }
-      }
-
+      boolean forceSuccess = false;
       // try to roll log writer
-      if (rollWALFileWriterListener != null
+      if (info.rollWALFileWriterListener != null
           || (forceFlag && currentWALFileWriter.size() >= config.getWalFileSizeThresholdInByte())) {
         try {
           rollLogWriter(searchIndex, currentWALFileWriter.getWalFileStatus());
-          if (rollWALFileWriterListener != null) {
-            rollWALFileWriterListener.succeed();
+          forceSuccess = true;
+          if (info.rollWALFileWriterListener != null) {
+            info.rollWALFileWriterListener.succeed();
           }
         } catch (IOException e) {
           logger.error(
-              "Fail to roll wal node-{}'s log writer, change system mode to read-only.",
+              "Fail to roll wal node-{}'s log writer, change system mode to error.", identifier, e);
+          if (info.rollWALFileWriterListener != null) {
+            info.rollWALFileWriterListener.fail(e);
+          }
+          CommonDescriptor.getInstance().getConfig().handleUnrecoverableError();
+        }
+      } else if (forceFlag) { // force os cache to the storage device, avoid force twice by judging
+        // after rolling file
+        try {
+          currentWALFileWriter.force();
+          forceSuccess = true;
+        } catch (IOException e) {
+          logger.error(
+              "Fail to fsync wal node-{}'s log writer, change system mode to error.",
               identifier,
               e);
-          if (rollWALFileWriterListener != null) {
-            rollWALFileWriterListener.fail(e);
+          for (WALFlushListener fsyncListener : info.fsyncListeners) {
+            fsyncListener.fail(e);
           }
-          config.setReadOnly(true);
+          CommonDescriptor.getInstance().getConfig().handleUnrecoverableError();
+        }
+      }
+
+      // notify all waiting listeners
+      if (forceSuccess) {
+        for (WALFlushListener fsyncListener : info.fsyncListeners) {
+          fsyncListener.succeed();
         }
       }
     }
@@ -497,15 +524,15 @@ public class WALBuffer extends AbstractWALBuffer {
 
   @Override
   public void close() {
-    isClosed = true;
     // first waiting serialize and sync tasks finished, then release all resources
     if (serializeThread != null) {
       // add close signal WALEntry to notify serializeThread
       try {
-        walEntries.put(new SignalWALEntry(SignalWALEntry.SignalType.CLOSE_SIGNAL));
+        walEntries.put(new WALSignalEntry(WALEntryType.CLOSE_SIGNAL));
       } catch (InterruptedException e) {
         logger.error("Fail to put CLOSE_SIGNAL to walEntries.", e);
       }
+      isClosed = true;
       shutdownThread(serializeThread, ThreadName.WAL_SERIALIZE);
     }
     if (syncBufferThread != null) {
@@ -545,6 +572,11 @@ public class WALBuffer extends AbstractWALBuffer {
 
   @Override
   public boolean isAllWALEntriesConsumed() {
-    return walEntries.isEmpty();
+    buffersLock.lock();
+    try {
+      return walEntries.isEmpty() && workingBuffer.position() == 0 && syncingBuffer == null;
+    } finally {
+      buffersLock.unlock();
+    }
   }
 }

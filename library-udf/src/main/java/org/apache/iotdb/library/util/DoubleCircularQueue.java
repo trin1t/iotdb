@@ -82,6 +82,22 @@ public class DoubleCircularQueue {
   }
 
   /**
+   * get the value in the end
+   *
+   * @return value in the end
+   */
+  public double getTail() {
+    if (isEmpty()) {
+      throw new IllegalArgumentException("Error: Queue is Empty!");
+    }
+    if (tail == 0) {
+      return data[data.length - 1];
+    } else {
+      return data[tail - 1];
+    }
+  }
+
+  /**
    * judge if circular queue is empty
    *
    * @return if empty, return true; else return false
@@ -134,5 +150,16 @@ public class DoubleCircularQueue {
    */
   public int getSize() {
     return size;
+  }
+
+  public double[] getData() {
+    return data;
+  }
+
+  public void set(int index, double value) {
+    if (index < 0 || index >= size) {
+      throw new IndexOutOfBoundsException();
+    }
+    data[(head + index) % data.length] = value;
   }
 }

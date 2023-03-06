@@ -19,10 +19,12 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public abstract class ValueRepair {
 
@@ -31,13 +33,15 @@ public abstract class ValueRepair {
   protected double[] original;
   protected double[] repaired;
 
-  public ValueRepair(RowIterator dataIterator) throws Exception {
+  public ValueRepair(ArrayList<RowRecord> dataIterator) throws Exception {
     ArrayList<Long> timeList = new ArrayList<>();
     ArrayList<Double> originList = new ArrayList<>();
-    while (dataIterator.hasNextRow()) {
-      Row row = dataIterator.next();
-      Double v = Util.getValueAsDouble(row);
-      timeList.add(row.getTime());
+    Iterator<RowRecord> rowRecordIterator = dataIterator.iterator();
+
+    while (rowRecordIterator.hasNext()) {
+      RowRecord row = rowRecordIterator.next();
+      Double v = row.getFields().get(0).getDoubleV();
+      timeList.add(row.getTimestamp());
       if (!Double.isFinite(v)) {
         originList.add(Double.NaN);
       } else {

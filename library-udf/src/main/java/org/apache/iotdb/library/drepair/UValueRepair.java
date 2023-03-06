@@ -19,9 +19,11 @@
 
 package org.apache.iotdb.library.drepair;
 
+import javafx.util.Pair;
 import org.apache.iotdb.library.drepair.util.LsGreedy;
 import org.apache.iotdb.library.drepair.util.Screen;
 import org.apache.iotdb.library.drepair.util.ValueRepair;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.RowWindow;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -31,6 +33,8 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function is used to repair the value of the time series. */
 public class UValueRepair {
   String method;
@@ -38,38 +42,40 @@ public class UValueRepair {
   double maxSpeed;
   double center;
   double sigma;
+  int windowSize=10;
 
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.FLOAT, Type.DOUBLE, Type.INT32, Type.INT64)
-        .validate(
-            x -> (double) x > 0,
-            "Parameter $sigma$ should be larger than 0.",
-            validator.getParameters().getDoubleOrDefault("sigma", 1.0))
-        .validate(
-            params -> (double) params[0] < (double) params[1],
-            "parameter $minSpeed$ should be smaller than $maxSpeed$.",
-            validator.getParameters().getDoubleOrDefault("minSpeed", -1),
-            validator.getParameters().getDoubleOrDefault("maxSpeed", 1));
+  public ArrayList<Pair<Long, Double>> getValueRepair(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
+
+    ArrayList<RowRecord> rows = new ArrayList<>();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      rows.add(row);
+      if(rows.size()==windowSize){
+        res.addAll(transform(rows));
+        rows.clear();
+      }
+    }
+    if(rows.size()>0){
+      res.addAll(transform(rows));
+      rows.clear();
+    }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    configurations
-        .setAccessStrategy(new SlidingSizeWindowAccessStrategy(Integer.MAX_VALUE))
-        .setOutputDataType(parameters.getDataType(0));
-    method = parameters.getStringOrDefault("method", "screen");
-    minSpeed = parameters.getDoubleOrDefault("minSpeed", Double.NaN);
-    maxSpeed = parameters.getDoubleOrDefault("maxSpeed", Double.NaN);
-    center = parameters.getDoubleOrDefault("center", 0);
-    sigma = parameters.getDoubleOrDefault("sigma", Double.NaN);
-  }
+  public void beforeStart() {}
 
-  public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
+  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
     ValueRepair vr;
     if ("screen".equalsIgnoreCase(method)) {
-      Screen screen = new Screen(rowWindow.getRowIterator());
+      Screen screen = new Screen(rows);
       if (!Double.isNaN(minSpeed)) {
         screen.setSmin(minSpeed);
       }
@@ -78,7 +84,7 @@ public class UValueRepair {
       }
       vr = screen;
     } else if ("lsgreedy".equalsIgnoreCase(method)) {
-      LsGreedy lsGreedy = new LsGreedy(rowWindow.getRowIterator());
+      LsGreedy lsGreedy = new LsGreedy(rows);
       if (!Double.isNaN(sigma)) {
         lsGreedy.setSigma(sigma);
       }
@@ -93,26 +99,32 @@ public class UValueRepair {
     switch (rowWindow.getDataType(0)) {
       case DOUBLE:
         for (int i = 0; i < time.length; i++) {
-          collector.putDouble(time[i], repaired[i]);
+          res.add(Pair.of(time[i],repaired[i]));
         }
         break;
       case FLOAT:
         for (int i = 0; i < time.length; i++) {
-          collector.putFloat(time[i], (float) repaired[i]);
+          res.add(Pair.of(time[i], (float) repaired[i]));
         }
         break;
       case INT32:
         for (int i = 0; i < time.length; i++) {
-          collector.putInt(time[i], (int) Math.round(repaired[i]));
+          res.add(Pair.of(time[i], (int) Math.round(repaired[i])));
         }
         break;
       case INT64:
         for (int i = 0; i < time.length; i++) {
-          collector.putLong(time[i], Math.round(repaired[i]));
+          res.add(Pair.of(time[i], Math.round(repaired[i])));
         }
         break;
       default:
         throw new Exception();
     }
+    return res;
+  }
+
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
   }
 }

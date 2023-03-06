@@ -19,8 +19,10 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
+import java.util.ArrayList;
 import java.util.PriorityQueue;
 
 public class LsGreedy extends ValueRepair {
@@ -28,7 +30,7 @@ public class LsGreedy extends ValueRepair {
   private double center = 0, sigma;
   private final double eps = 1e-12;
 
-  public LsGreedy(RowIterator dataIterator) throws Exception {
+  public LsGreedy(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
     setParameters();
   }

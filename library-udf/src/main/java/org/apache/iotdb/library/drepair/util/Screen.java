@@ -19,6 +19,7 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,7 +33,7 @@ public class Screen extends ValueRepair {
   private double smin, smax;
   private double w;
 
-  public Screen(RowIterator dataIterator) throws Exception {
+  public Screen(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
     setParameters();
   }

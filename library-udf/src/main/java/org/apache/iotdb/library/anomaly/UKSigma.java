@@ -112,8 +112,19 @@ public class UKSigma{
     return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate(){
+  public ArrayList<Pair<Long, Double>> terminate() throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
+    if (!v.isFull() && v.getSize() > 1) {
+      double stddev = Math.sqrt(this.var * v.getSize() / (v.getSize() - 1));
+      for (int i = 0; i < v.getSize(); i++) {
+        Object v = this.v.get(i);
+        long timestamp = this.t.get(i);
+        if (Math.abs(Double.parseDouble(v.toString()) - mean) > multipleK * stddev) {
+          res.add(Pair.of(timestamp, Double.parseDouble(v.toString())));
+        }
+      }
+    }
     return res;
   }
 }

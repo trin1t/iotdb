@@ -22,13 +22,13 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 
 /**
- * Describe class here.
+ * Sphere to construct ball tree.
  */
 public class Sphere {
   private ArrayList<Double> centeriod; // record this is n-th grid on each axis
   private double radium;
   private int pointNum;
-  private ArrayDeque<Long> points;
+  public ArrayDeque<Long> points;
   private boolean isAnomaly;
 
   public Sphere(ArrayList<Double> o, double r, int p){

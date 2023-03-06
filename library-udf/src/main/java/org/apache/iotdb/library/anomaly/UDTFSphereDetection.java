@@ -20,9 +20,7 @@ package org.apache.iotdb.library.anomaly;
 
 import java.util.ArrayList;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.math3.stat.descriptive.rank.Median;
-import org.apache.iotdb.library.dprofile.util.MADSketch;
-import org.apache.iotdb.library.anomaly.util.StreamGridDetector;
+import org.apache.iotdb.library.anomaly.util.StreamSphereDetector;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
@@ -34,17 +32,18 @@ import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
 /**
- * This function put data in grids (hyper-cubes) to find outliers with few neighbours.
+ * Detect outlier by sphere.
  */
-public class UDTFGridDetection implements UDTF{
-  private StreamGridDetector detector;
-  private int dimension;
+public class UDTFSphereDetection implements UDTF {
+  private StreamSphereDetector detector;
   private int cnt;
   private int window;
   private int step;
+  private int dimension;
   private boolean onSliding;
-  private ArrayList<Pair<Long, ArrayList<Double>>> initialPoints;
-  private long lastTimestampOfLastWindow;
+  private ArrayList<Pair<Long, ArrayList<Double>>> points;
+  private double distThreshold;
+  private int anomalyThreshold;
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
@@ -56,7 +55,6 @@ public class UDTFGridDetection implements UDTF{
         .validate(x -> (int) x > 0, "parameter $dim$ should be larger than 0.",
             validator.getParameters().getInt("dim"));
   }
-
   @Override
   public void beforeStart(UDFParameters udfp, UDTFConfigurations udtfc) throws Exception {
     cnt = 0;
@@ -64,9 +62,11 @@ public class UDTFGridDetection implements UDTF{
     udtfc.setAccessStrategy(new RowByRowAccessStrategy()).setOutputDataType(Type.BOOLEAN);
     window = udfp.getIntOrDefault("window", 100);
     step = udfp.getIntOrDefault("step", 10);
-    this.detector = new StreamGridDetector(dimension);
+    distThreshold = udfp.getDoubleOrDefault("dist", 10d);
+    anomalyThreshold = udfp.getIntOrDefault("num_in_cluster", 5);
+    this.detector = new StreamSphereDetector(distThreshold, anomalyThreshold);
     onSliding = false;
-    initialPoints = new ArrayList<>();
+    points = new ArrayList<>();
   }
 
   @Override
@@ -75,42 +75,23 @@ public class UDTFGridDetection implements UDTF{
     for(int i = 0; i < dimension; i ++){
       coordinate.add(Util.getValueAsDouble(row, i));
     }
-        cnt ++;
+    cnt ++;
     if(!onSliding){
-      initialPoints.add(Pair.of(row.getTime(), coordinate));
+      points.add(Pair.of(row.getTime(), coordinate));
       if(cnt == window){
-        double[] medians = new double[dimension];
-        double[] mads = new double[dimension];
-        MADSketch sk;
-        for(int i = 0; i < dimension; i ++){
-          double[] cord = new double[window];
-          sk = new MADSketch(0.01);
-          for (int j = 0; j < window; j ++){
-            double c = initialPoints.get(i).getRight().get(j);
-            sk.insert(c);
-            cord[j] = c;
-          }
-          medians[i] = new Median().evaluate(cord);
-          mads[i] = sk.getMad().result;
-        }
-        detector.setGridSize(mads);
-        detector.setOrigin(medians);
-        for(Pair<Long, ArrayList<Double>> p : initialPoints){
-          detector.insert(p.getLeft(), p.getRight());
-        }
-        detector.excludeInlierGrids();
+        detector.initializeTree(points, window / 10);
         cnt = 0;
         onSliding = true;
-        lastTimestampOfLastWindow = row.getTime();
+        points.clear();
       }
     }
     else{
-      detector.insert(row.getTime(), coordinate);
+      points.add(Pair.of(row.getTime(), coordinate));
       if(cnt == step){
-        for(Long p : detector.flush(lastTimestampOfLastWindow)){
+        for(Long p : detector.flush(points)){
           collector.putBoolean(p, true);
         }
-        lastTimestampOfLastWindow = row.getTime();
+        points.clear();
         cnt = 0;
       }
     }
@@ -118,7 +99,7 @@ public class UDTFGridDetection implements UDTF{
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for(Long p : detector.terminate()){
+    for(Long p : detector.mergeSpheres(detector.tree, Long.MAX_VALUE)){
       collector.putBoolean(p, true);
     }
   }

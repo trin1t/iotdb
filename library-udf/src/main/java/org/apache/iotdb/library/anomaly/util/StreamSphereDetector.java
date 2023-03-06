@@ -18,7 +18,6 @@
  */
 package org.apache.iotdb.library.anomaly.util;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Random;
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,10 +27,16 @@ import org.apache.commons.math3.stat.descriptive.rank.Median;
  * This class implements UDTFSphereDetection
  */
 public class StreamSphereDetector {
-  private SphereTreeNode tree = new SphereTreeNode();
+  public SphereTreeNode tree = new SphereTreeNode();
   private double madCoef = 3d;
-  private ArrayDeque<Pair<Long, ArrayList<Double>>> possibleOutliers = new ArrayDeque<>();
+  private ArrayList<Pair<Long, ArrayList<Double>>> PossibleOutliers = new ArrayList<>();
+  private double distThreshold;
+  private int anomalyThreshold;
 
+  public StreamSphereDetector(double d, int l){
+    distThreshold = d;
+    anomalyThreshold = l;
+  }
 
   public void initializeTree(ArrayList<Pair<Long, ArrayList<Double>>> points, int k){
     // k-means clustering
@@ -105,7 +110,7 @@ public class StreamSphereDetector {
       double mad = new Median().evaluate(ad);
       for(int j = 0; j < dists.get(i).size(); j ++){
         if(Math.abs(dists.get(i).get(j) - med) > madCoef * mad){
-          possibleOutliers.add(points.get(j));
+          PossibleOutliers.add(points.get(j));
           clusters.set(j, -1);
         }
       }
@@ -125,6 +130,7 @@ public class StreamSphereDetector {
   }
 
   public ArrayList<Long> flush(ArrayList<Pair<Long, ArrayList<Double>>> points){
+    ArrayList<Long> outlierTimestamps = new ArrayList<>();
     long firstTimestamp = points.get(0).getLeft();
     ArrayList<Double> dists = new ArrayList<>();
     for(int i = 0; i < points.size(); i ++){
@@ -155,27 +161,97 @@ public class StreamSphereDetector {
       }
     }
     // try to construct new spheres
-
+    SphereTreeNode newRoot = new SphereTreeNode();
+    for(int i = 0; i < PossibleOutliers.size(); i ++){
+      Sphere s = new Sphere(new ArrayList<>(PossibleOutliers.get(i).getRight()), distThreshold,0);
+      s.addPoint(PossibleOutliers.get(i).getLeft());
+      newRoot.sons.add(new SphereTreeNode(s));
+    }
+    PossibleOutliers.clear();
+    mergeSpheres(newRoot, firstTimestamp);
+    tree.sons.add(newRoot);
     // merge spheres
-
+    outlierTimestamps.addAll(mergeSpheres(tree, firstTimestamp));
+    return outlierTimestamps;
   }
 
-  private void mergeSpheres(SphereTreeNode node){
+  public ArrayList<Long> mergeSpheres(SphereTreeNode node, Long l){
     for(SphereTreeNode n : node.sons){
       if(n.sons.size() > 1){
-        mergeSpheres(node);
+        mergeSpheres(node, l);
       }
     }
-    for(SphereTreeNode s1 : node.sons){
-      for(SphereTreeNode s2 : node.sons){
-        if(s1 != s2){
-          if(euDist(s1.sphere.getCenteriod(), s2.sphere.getCenteriod()) * 1.414 < s1.sphere.getRadium() + s2.sphere.getRadium()){
-            ArrayList<Double> newCentroid = new ArrayList<>();
-
+    boolean isChanged;
+    do{
+      isChanged = false;
+      for(SphereTreeNode s1 : node.sons){
+        for(SphereTreeNode s2 : node.sons){
+          if(s1 != s2){
+            double centDist = euDist(s1.sphere.getCenteriod(), s2.sphere.getCenteriod());
+            if(centDist * 1.5 < s1.sphere.getRadium() + s2.sphere.getRadium()){
+              ArrayList<Double> newCentroid = newCenteriod(s1.sphere.getCenteriod(), s2.sphere.getCenteriod(), s1.sphere.getRadium(), s2.sphere.getRadium());
+              SphereTreeNode newNode = new SphereTreeNode(new Sphere(newCentroid, centDist / 2, s1.sphere.getPointNum() + s2.sphere.getPointNum()));
+              Long t1 = s1.sphere.points.removeFirst(), t2 = s2.sphere.points.removeFirst();
+              if(newNode.sphere.getPointNum() > anomalyThreshold){
+                newNode.sphere.setIsAnomaly(false);
+              }
+              else{
+                while (s1.sphere.points.size() != 0 || s2.sphere.points.size() != 0) {
+                  if (t1 < t2) {
+                    newNode.sphere.points.addFirst(t1);
+                    if (t1 < Long.MAX_VALUE && s1.sphere.points.size() > 0) {
+                      t1 = s1.sphere.points.removeFirst();
+                      newNode.sphere.points.addLast(t1);
+                    } else {
+                      t1 = Long.MAX_VALUE;
+                    }
+                  } else {
+                    if (t2 < Long.MAX_VALUE && s2.sphere.points.size() > 0) {
+                      t2 = s2.sphere.points.removeFirst();
+                      newNode.sphere.points.addLast(t2);
+                    } else {
+                      t2 = Long.MAX_VALUE;
+                    }
+                  }
+                }
+              }
+              node.sons.remove(s1);
+              node.sons.remove(s2);
+              node.sons.add(newNode);
+              isChanged = true;
+              break;
+            }
+          }
+        }
+        if(isChanged){
+          break;
+        }
+      }
+    }while (!isChanged);
+    ArrayList<Long> res = new ArrayList<>();
+    for(SphereTreeNode s : node.sons){
+      if(s.sphere.isAnomaly()){
+        while(s.sphere.points.size() > 0){
+          Long t = s.sphere.points.getFirst();
+          if(t < l){
+            res.add(t);
+            s.sphere.points.removeFirst();
+          }
+          else{
+            break;
           }
         }
       }
     }
+    return res;
+  }
+
+  private ArrayList<Double> newCenteriod(ArrayList<Double> o1, ArrayList<Double> o2, double r1, double r2){
+    ArrayList<Double> res = new ArrayList<>();
+    for(int i = 0; i < o1.size(); i ++){
+      res.add(o1.get(i) * r2 / (r1 + r2) + o2.get(i) * r1 / (r1 + r2));
+    }
+    return res;
   }
 
   public double euDist(ArrayList<Double> x, ArrayList<Double> y){
@@ -199,7 +275,7 @@ public class StreamSphereDetector {
         mylist.add(num);
       }
     }
-    for(int i = 0;i <mylist.size();i++) {
+    for(int i = 0; i <mylist.size();i++) {
       intRandom[i] = mylist.get(i);
     }
     return intRandom;

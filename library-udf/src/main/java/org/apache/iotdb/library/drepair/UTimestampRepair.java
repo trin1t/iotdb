@@ -71,29 +71,8 @@ public class UTimestampRepair{
     ts.dpRepair();
     long[] timestamp = ts.getRepaired();
     double[] value = ts.getRepairedValue();
-    switch (rows.getType(0)) {
-      case DOUBLE:
-        for (int i = 0; i < timestamp.length; i++) {
-          res.add(Pair.of(timestamp[i],value[i]));
-        }
-        break;
-      case FLOAT:
-        for (int i = 0; i < timestamp.length; i++) {
-          res.add(Pair.of(timestamp[i], (float) value[i]));
-        }
-        break;
-      case INT32:
-        for (int i = 0; i < timestamp.length; i++) {
-          res.add(Pair.of(timestamp[i], (int) value[i]));
-        }
-        break;
-      case INT64:
-        for (int i = 0; i < timestamp.length; i++) {
-          res.add(Pair.of(timestamp[i], (long) value[i]));
-        }
-        break;
-      default:
-        throw new Exception();
+    for (int i = 0; i < timestamp.length; i++) {
+      res.add(Pair.of(timestamp[i],value[i]));
     }
     return res;
   }

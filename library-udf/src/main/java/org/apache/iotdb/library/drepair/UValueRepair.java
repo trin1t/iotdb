@@ -96,29 +96,8 @@ public class UValueRepair {
     vr.repair();
     double[] repaired = vr.getRepaired();
     long[] time = vr.getTime();
-    switch (rowWindow.getDataType(0)) {
-      case DOUBLE:
-        for (int i = 0; i < time.length; i++) {
-          res.add(Pair.of(time[i],repaired[i]));
-        }
-        break;
-      case FLOAT:
-        for (int i = 0; i < time.length; i++) {
-          res.add(Pair.of(time[i], (float) repaired[i]));
-        }
-        break;
-      case INT32:
-        for (int i = 0; i < time.length; i++) {
-          res.add(Pair.of(time[i], (int) Math.round(repaired[i])));
-        }
-        break;
-      case INT64:
-        for (int i = 0; i < time.length; i++) {
-          res.add(Pair.of(time[i], Math.round(repaired[i])));
-        }
-        break;
-      default:
-        throw new Exception();
+    for (int i = 0; i < time.length; i++) {
+      res.add(Pair.of(time[i],repaired[i]));
     }
     return res;
   }

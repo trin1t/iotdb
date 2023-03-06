@@ -18,7 +18,10 @@
  */
 package org.apache.iotdb.library.drepair.util;
 
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
+
+import java.util.ArrayList;
 
 public class MAFill extends ValueFill {
   int window_size = 5;
@@ -27,7 +30,7 @@ public class MAFill extends ValueFill {
   int l = 0;
   int r = window_size - 1;
 
-  public MAFill(RowIterator dataIterator) throws Exception {
+  public MAFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
   }
 

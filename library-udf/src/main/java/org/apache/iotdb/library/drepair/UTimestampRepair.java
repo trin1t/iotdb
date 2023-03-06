@@ -19,7 +19,9 @@
 
 package org.apache.iotdb.library.drepair;
 
+import javafx.util.Pair;
 import org.apache.iotdb.library.drepair.util.TimestampRepair;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.RowWindow;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -29,70 +31,74 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function is used for timestamp repair. */
 public class UTimestampRepair{
-  String intervalMethod;
-  int interval;
   int intervalMode;
+  int windowSize = 10;
 
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.DOUBLE, Type.FLOAT, Type.INT32, Type.INT64)
-        .validate(
-            x -> (Integer) x >= 0,
-            "Interval should be a positive integer.",
-            validator.getParameters().getIntOrDefault("interval", 0));
-  }
+  public ArrayList<Pair<Long, Double>> getTimestampRepair(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
 
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    configurations
-        .setAccessStrategy(new SlidingSizeWindowAccessStrategy(Integer.MAX_VALUE))
-        .setOutputDataType(parameters.getDataType(0));
-    intervalMethod = parameters.getStringOrDefault("method", "Median");
-    interval = parameters.getIntOrDefault("interval", 0);
-    if (interval > 0) {
-      intervalMode = interval;
-    } else if ("Median".equalsIgnoreCase(intervalMethod)) {
-      intervalMode = -1;
-    } else if ("Mode".equalsIgnoreCase(intervalMethod)) {
-      intervalMode = -2;
-    } else if ("Cluster".equalsIgnoreCase(intervalMethod)) {
-      intervalMode = -3;
-    } else {
-      throw new Exception("Illegal method.");
+    ArrayList<RowRecord> rows = new ArrayList<>();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      rows.add(row);
+      if(rows.size()==windowSize){
+        res.addAll(transform(rows));
+        rows.clear();
+      }
     }
+    if(rows.size()>0){
+      res.addAll(transform(rows));
+      rows.clear();
+    }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
-    TimestampRepair ts = new TimestampRepair(rowWindow.getRowIterator(), intervalMode, 2);
+  public void beforeStart() {}
+
+  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
+    TimestampRepair ts = new TimestampRepair(rows, intervalMode, 2);
     ts.dpRepair();
     long[] timestamp = ts.getRepaired();
     double[] value = ts.getRepairedValue();
-    switch (rowWindow.getDataType(0)) {
+    switch (rows.getType(0)) {
       case DOUBLE:
         for (int i = 0; i < timestamp.length; i++) {
-          collector.putDouble(timestamp[i], value[i]);
+          res.add(Pair.of(timestamp[i],value[i]));
         }
         break;
       case FLOAT:
         for (int i = 0; i < timestamp.length; i++) {
-          collector.putFloat(timestamp[i], (float) value[i]);
+          res.add(Pair.of(timestamp[i], (float) value[i]));
         }
         break;
       case INT32:
         for (int i = 0; i < timestamp.length; i++) {
-          collector.putInt(timestamp[i], (int) value[i]);
+          res.add(Pair.of(timestamp[i], (int) value[i]));
         }
         break;
       case INT64:
         for (int i = 0; i < timestamp.length; i++) {
-          collector.putLong(timestamp[i], (long) value[i]);
+          res.add(Pair.of(timestamp[i], (long) value[i]));
         }
         break;
       default:
         throw new Exception();
     }
+  }
+
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
   }
 }

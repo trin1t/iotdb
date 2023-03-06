@@ -19,6 +19,7 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class TimestampRepair {
 
@@ -38,14 +40,16 @@ public class TimestampRepair {
   protected long start0;
   private static final Logger logger = LoggerFactory.getLogger(TimestampRepair.class);
 
-  public TimestampRepair(RowIterator dataIterator, int intervalMode, int startPointMode)
+  public TimestampRepair(ArrayList<RowRecord> dataIterator, int intervalMode, int startPointMode)
       throws Exception {
     ArrayList<Long> timeList = new ArrayList<>();
     ArrayList<Double> originList = new ArrayList<>();
-    while (dataIterator.hasNextRow()) {
-      Row row = dataIterator.next();
-      double v = Util.getValueAsDouble(row);
-      timeList.add(row.getTime());
+    Iterator<RowRecord> rowRecordIterator = dataIterator.iterator();
+
+    while (rowRecordIterator.hasNext()) {
+      RowRecord row = rowRecordIterator.next();
+      double v = row.getFields().get(0).getDoubleV();
+      timeList.add(row.getTimestamp());
       if (!Double.isFinite(v)) {
         originList.add(Double.NaN);
       } else {

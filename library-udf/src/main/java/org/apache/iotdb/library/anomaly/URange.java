@@ -19,9 +19,11 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.commons.udf.utils.UDFDataTypeTransformer;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -31,68 +33,46 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function is used to detect range anomaly of time series. */
-public class URange implements UDTF {
+public class URange{
   private TSDataType dataType;
   private double upperBound;
   private double lowerBound;
 
-  @Override
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.INT32, Type.INT64, Type.FLOAT, Type.DOUBLE);
+  public ArrayList<Pair<Long, Double>> getValueFill(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      res.addAll(transform(row));
+    }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  @Override
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    configurations
-        .setAccessStrategy(new RowByRowAccessStrategy())
-        .setOutputDataType(parameters.getDataType(0));
-    this.lowerBound = parameters.getDouble("lower_bound");
-    this.upperBound = parameters.getDouble("upper_bound");
-    this.dataType = UDFDataTypeTransformer.transformToTsDataType(parameters.getDataType(0));
-  }
+  public void beforeStart() {}
 
-  @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
-    int intValue;
-    long longValue;
-    float floatValue;
+  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
     double doubleValue;
     long timestamp;
-    timestamp = row.getTime();
-    switch (dataType) {
-      case INT32:
-        intValue = row.getInt(0);
-        if (intValue > upperBound || intValue < lowerBound) {
-          Util.putValue(collector, dataType, timestamp, intValue);
-        }
-        break;
-      case INT64:
-        longValue = row.getLong(0);
-        if (longValue > upperBound || longValue < lowerBound) {
-          Util.putValue(collector, dataType, timestamp, longValue);
-        }
-        break;
-      case FLOAT:
-        floatValue = row.getFloat(0);
-        if (floatValue > upperBound || floatValue < lowerBound) {
-          Util.putValue(collector, dataType, timestamp, floatValue);
-        }
-        break;
-      case DOUBLE:
-        doubleValue = row.getDouble(0);
-        if (doubleValue > upperBound || doubleValue < lowerBound) {
-          Util.putValue(collector, dataType, timestamp, doubleValue);
-        }
-        break;
-      default:
-        throw new Exception("No such kind of data type.");
+    timestamp = row.getTimestamp();
+
+    doubleValue = row.getFields().get(0).getDoubleV();
+    if (doubleValue > upperBound || doubleValue < lowerBound) {
+      res.add(Pair.of(timestamp, doubleValue));
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {}
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
+  }
 }

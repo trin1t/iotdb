@@ -19,8 +19,10 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.anomaly.util.StreamMissDetector;
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -30,44 +32,48 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function is used to detect missing anomalies. */
-public class UMissDetect implements UDTF {
+public class UMissDetect {
+
+  public ArrayList<Pair<Long, Boolean>> getMissDetect(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
+    beforeStart();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      res.addAll(transform(row));
+    }
+
+    res.addAll(terminate());
+
+    return res;
+  }
 
   private StreamMissDetector detector;
 
-  @Override
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.DOUBLE, Type.FLOAT, Type.INT32, Type.INT64)
-        .validate(
-            x -> (int) x >= 10,
-            "minlen should be an integer greater than or equal to 10.",
-            validator.getParameters().getIntOrDefault("minlen", 10));
-  }
+  public void beforeStart(){}
 
-  @Override
-  public void beforeStart(UDFParameters udfp, UDTFConfigurations udtfc) throws Exception {
-    udtfc.setAccessStrategy(new RowByRowAccessStrategy()).setOutputDataType(Type.BOOLEAN);
-    int minLength = udfp.getIntOrDefault("minlen", 10);
-    this.detector = new StreamMissDetector(minLength);
-  }
+  public ArrayList<Pair<Long, Boolean>> transform(RowRecord row) throws Exception {
+    ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
 
-  @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
-    detector.insert(row.getTime(), Util.getValueAsDouble(row));
+    detector.insert(row.getTimestamp(), row.getFields().get(0).getDoubleV());
     while (detector.hasNext()) {
-      collector.putBoolean(detector.getOutTime(), detector.getOutValue());
+      res.add(Pair.of(detector.getOutTime(),detector.getOutValue()));
       detector.next();
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {
+  public ArrayList<Pair<Long, Boolean>> terminate() throws Exception {
+    ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
+
     detector.flush();
     while (detector.hasNext()) {
-      collector.putBoolean(detector.getOutTime(), detector.getOutValue());
+      res.add(Pair.of(detector.getOutTime(),detector.getOutValue()));
       detector.next();
     }
+    return res;
   }
 }

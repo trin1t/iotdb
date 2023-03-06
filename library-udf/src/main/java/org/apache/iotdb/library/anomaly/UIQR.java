@@ -19,7 +19,9 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -37,7 +39,7 @@ import java.util.ArrayList;
 This function is used to detect anomalies based on IQR.
 Stream swap require user to provide Q1 and Q3, while global swap does not.
 */
-public class UIQR implements UDTF {
+public class UIQR{
   ArrayList<Double> value = new ArrayList<>();
   ArrayList<Long> timestamp = new ArrayList<>();
   String compute = "batch";
@@ -45,54 +47,41 @@ public class UIQR implements UDTF {
   double q3 = 0.0d;
   double iqr = 0.0d;
 
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.INT32, Type.INT64, Type.FLOAT, Type.DOUBLE)
-        .validate(
-            x -> ((String) x).equalsIgnoreCase("batch") || ((String) x).equalsIgnoreCase("stream"),
-            "Parameter \"compute\" is illegal. Please use \"batch\" (for default) or \"stream\".",
-            validator.getParameters().getStringOrDefault("compute", "batch"))
-        .validate(
-            params -> (double) params[0] < (double) params[1],
-            "parameter $q1$ should be smaller than $q3$",
-            validator.getParameters().getDoubleOrDefault("q1", -1),
-            validator.getParameters().getDoubleOrDefault("q3", 1));
-  }
+  public ArrayList<Pair<Long, Double>> getIQR(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
 
-  @Override
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    value.clear();
-    timestamp.clear();
-    q1 = 0.0d;
-    q3 = 0.0d;
-    iqr = 0.0d;
-    configurations.setAccessStrategy(new RowByRowAccessStrategy()).setOutputDataType(Type.DOUBLE);
-    compute = parameters.getStringOrDefault("compute", "batch");
-    if (compute.equalsIgnoreCase("stream")) {
-      q1 = parameters.getDouble("q1");
-      q3 = parameters.getDouble("q3");
-      iqr = q3 - q1;
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      res.addAll(transform(row));
     }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
+  public void beforeStart(){}
+
+  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
     if (compute.equalsIgnoreCase("stream") && q3 > q1) {
-      double v = Util.getValueAsDouble(row);
+      double v = row.getFields().get(0).getDoubleV();
       if (v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr) {
-        collector.putDouble(row.getTime(), v);
+        res.add(Pair.of(row.getTimestamp(),v));
       }
     } else if (compute.equalsIgnoreCase("batch")) {
-      double v = Util.getValueAsDouble(row);
+      double v = row.getFields().get(0).getDoubleV();
       value.add(v);
-      timestamp.add(row.getTime());
+      timestamp.add(row.getTimestamp());
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {
+  public ArrayList<Pair<Long, Double>> terminate() throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
     if (compute.equalsIgnoreCase("batch")) {
       q1 = Quantiles.quartiles().index(1).compute(value);
       q3 = Quantiles.quartiles().index(3).compute(value);
@@ -101,7 +90,7 @@ public class UIQR implements UDTF {
     for (int i = 0; i < value.size(); i++) {
       double v = value.get(i);
       if (v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr) {
-        collector.putDouble(timestamp.get(i), v);
+        res.add(Pair.of(timestamp.get(i), v));
       }
     }
   }

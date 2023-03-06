@@ -20,12 +20,14 @@
 package org.apache.iotdb.library.dquality.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /** Class for computing data quality index. */
 public class TimeSeriesQuality {
@@ -43,14 +45,16 @@ public class TimeSeriesQuality {
   private final double[] time; // series without special values
   private final double[] origin; // series without special values
 
-  public TimeSeriesQuality(RowIterator dataIterator) throws Exception {
+  public TimeSeriesQuality(ArrayList<RowRecord> dataIterator) throws Exception {
     ArrayList<Double> timeList = new ArrayList<>();
     ArrayList<Double> originList = new ArrayList<>();
-    while (dataIterator.hasNextRow()) {
-      Row row = dataIterator.next();
+    Iterator<RowRecord> rowRecordIterator = dataIterator.iterator();
+
+    while (rowRecordIterator.hasNext()) {
       cnt++;
-      double v = Util.getValueAsDouble(row);
-      double t = (double) row.getTime();
+      RowRecord row = rowRecordIterator.next();
+      double v = row.getFields().get(0).getDoubleV();
+      double t = row.getTimestamp();
       if (Double.isFinite(v)) {
         timeList.add(t);
         originList.add(v);

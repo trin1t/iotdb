@@ -18,6 +18,7 @@
  */
 package org.apache.iotdb.library.drepair.util;
 
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
 import java.util.ArrayList;
@@ -28,7 +29,7 @@ public class LikelihoodFill extends ValueFill {
   private double stopErrorRatio = 0.0001;
   private int stopIteration = Integer.MAX_VALUE;
 
-  public LikelihoodFill(RowIterator dataIterator) throws Exception {
+  public LikelihoodFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
   }
 

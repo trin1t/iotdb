@@ -18,14 +18,17 @@
  */
 package org.apache.iotdb.library.drepair.util;
 
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
+
+import java.util.ArrayList;
 
 public class PreviousFill extends ValueFill {
 
   private long previousTime = -1;
   private double previousValue;
 
-  public PreviousFill(RowIterator dataIterator) throws Exception {
+  public PreviousFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
   }
 

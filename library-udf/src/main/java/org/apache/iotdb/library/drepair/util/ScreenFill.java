@@ -19,6 +19,7 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 import org.apache.iotdb.udf.api.exception.UDFException;
 
@@ -34,7 +35,7 @@ public class ScreenFill extends ValueFill {
   private double smin, smax;
   private double w;
 
-  public ScreenFill(RowIterator dataIterator) throws Exception {
+  public ScreenFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
     setParameters();
   }

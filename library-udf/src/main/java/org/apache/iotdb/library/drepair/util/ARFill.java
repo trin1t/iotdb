@@ -18,15 +18,18 @@
  */
 package org.apache.iotdb.library.drepair.util;
 
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 import org.apache.iotdb.udf.api.exception.UDFException;
+
+import java.util.ArrayList;
 
 public class ARFill extends ValueFill {
   // TODO Higer order AR regression
   private int order = 1;
   private double theta = 1e10;
 
-  public ARFill(RowIterator dataIterator) throws Exception {
+  public ARFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
     calMeanAndVar();
   }

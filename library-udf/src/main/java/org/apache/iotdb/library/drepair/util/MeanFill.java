@@ -18,10 +18,13 @@
  */
 package org.apache.iotdb.library.drepair.util;
 
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
+import java.util.ArrayList;
+
 public class MeanFill extends ValueFill {
-  public MeanFill(RowIterator dataIterator) throws Exception {
+  public MeanFill(ArrayList<RowRecord> dataIterator) throws Exception {
     super(dataIterator);
     calMeanAndVar();
   }

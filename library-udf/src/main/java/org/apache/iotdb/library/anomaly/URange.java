@@ -41,7 +41,7 @@ public class URange{
   private double upperBound;
   private double lowerBound;
 
-  public ArrayList<Pair<Long, Double>> getValueFill(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Double>> getRange(SessionDataset sds) throws Exception{
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 

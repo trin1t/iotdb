@@ -19,11 +19,13 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.commons.udf.utils.UDFDataTypeTransformer;
 import org.apache.iotdb.library.util.CircularQueue;
 import org.apache.iotdb.library.util.LongCircularQueue;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -33,8 +35,10 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function detects outliers which lies over average +/- k * sigma. */
-public class UKSigma implements UDTF {
+public class UKSigma{
   private double mean = 0.0;
   private double var = 0.0;
   private double sumX2 = 0.0;
@@ -45,80 +49,48 @@ public class UKSigma implements UDTF {
   private LongCircularQueue t;
   private TSDataType dataType;
 
-  @Override
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.INT32, Type.INT64, Type.FLOAT, Type.DOUBLE)
-        .validate(
-            x -> (int) x > 0,
-            "Window size should be larger than 0.",
-            validator.getParameters().getIntOrDefault("window", 10))
-        .validate(
-            x -> (double) x > 0,
-            "Parameter k should be larger than 0.",
-            validator.getParameters().getDoubleOrDefault("k", 3));
+  public ArrayList<Pair<Long, Double>> getKSigma(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      res.addAll(transform(row));
+    }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  @Override
-  public void beforeStart(UDFParameters udfParameters, UDTFConfigurations udtfConfigurations)
-      throws Exception {
-    udtfConfigurations
-        .setAccessStrategy(new RowByRowAccessStrategy())
-        .setOutputDataType(udfParameters.getDataType(0));
-    this.multipleK = udfParameters.getDoubleOrDefault("k", 3);
-    this.dataType = UDFDataTypeTransformer.transformToTsDataType(udfParameters.getDataType(0));
-    this.windowSize = udfParameters.getIntOrDefault("window", 10000);
-    this.v = new CircularQueue<>(windowSize);
-    this.t = new LongCircularQueue(windowSize);
-  }
+  public void beforeStart(){}
 
-  @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
-    double value = Util.getValueAsDouble(row);
-    long timestamp = row.getTime();
-    if (Double.isFinite(value) && !Double.isNaN(value)) {
-      if (v.isFull()) {
+  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
+    double value = row.getFields().get(0).getDoubleV();
+    long timestamp = row.getTimestamp();
+    if (Double.isFinite(value) && !Double.isNaN(value))
+    {
+      if (v.isFull())
+      {
         double frontValue = Double.parseDouble(v.pop().toString());
-        switch (dataType) {
-          case INT32:
-            v.push(row.getInt(0));
-            break;
-          case INT64:
-            v.push(row.getLong(0));
-            break;
-          case DOUBLE:
-            v.push(row.getDouble(0));
-            break;
-          case FLOAT:
-            v.push(row.getFloat(0));
-            break;
-        }
+        //v.push(row.getDouble(0));
+        v.push(row.getFields().get(0).getDoubleV());
         t.pop();
         t.push(timestamp);
         this.sumX1 = this.sumX1 - frontValue + value;
         this.sumX2 = this.sumX2 - frontValue * frontValue + value * value;
         this.mean = this.sumX1 / v.getSize();
         this.var = this.sumX2 / v.getSize() - this.mean * this.mean;
-        if (Math.abs(value - mean)
-            > multipleK * Math.sqrt(this.var * v.getSize() / (v.getSize() - 1))) {
-          Util.putValue(collector, dataType, timestamp, Util.getValueAsObject(row));
+        if (Math.abs(value - mean) > multipleK * Math.sqrt(this.var * v.getSize() / (v.getSize() - 1))) {
+          res.add(Pair.of(timestamp, row.getFields().get(0).getDoubleV()));
         }
-      } else {
-        switch (dataType) {
-          case INT32:
-            v.push(row.getInt(0));
-            break;
-          case INT64:
-            v.push(row.getLong(0));
-            break;
-          case DOUBLE:
-            v.push(row.getDouble(0));
-            break;
-          case FLOAT:
-            v.push(row.getFloat(0));
-            break;
-        }
+      }
+      else
+      {
+        //v.push(row.getDouble(0));
+        v.push(row.getFields().get(0).getDoubleV());
         t.push(timestamp);
         this.sumX1 = this.sumX1 + value;
         this.sumX2 = this.sumX2 + value * value;
@@ -130,25 +102,18 @@ public class UKSigma implements UDTF {
             Object v = this.v.get(i);
             timestamp = this.t.get(i);
             if (Math.abs(Double.parseDouble(v.toString()) - mean) > multipleK * stddev) {
-              Util.putValue(collector, dataType, timestamp, v);
+              //Util.putValue(collector, dataType, timestamp, v);
+              res.add(Pair.of(timestamp, Double.parseDouble(v.toString())));
             }
           }
         }
       }
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {
-    if (!v.isFull() && v.getSize() > 1) {
-      double stddev = Math.sqrt(this.var * v.getSize() / (v.getSize() - 1));
-      for (int i = 0; i < v.getSize(); i++) {
-        Object v = this.v.get(i);
-        long timestamp = this.t.get(i);
-        if (Math.abs(Double.parseDouble(v.toString()) - mean) > multipleK * stddev) {
-          Util.putValue(collector, dataType, timestamp, v);
-        }
-      }
-    }
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
   }
 }

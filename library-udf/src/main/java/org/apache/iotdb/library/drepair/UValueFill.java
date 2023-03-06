@@ -18,7 +18,7 @@
  */
 package org.apache.iotdb.library.drepair;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.drepair.util.ARFill;
 import org.apache.iotdb.library.drepair.util.LikelihoodFill;
 import org.apache.iotdb.library.drepair.util.LinearFill;

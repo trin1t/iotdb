@@ -19,6 +19,7 @@
 
 package org.apache.iotdb.library.dquality;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.dquality.util.TimeSeriesQuality;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
@@ -35,8 +36,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javafx.util.Pair;
 
 /** This function calculates completeness of input series. */
 public class UCompleteness{

@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.library.dquality;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.dquality.util.TimeSeriesQuality;
 import org.apache.iotdb.library.util.NoNumberException;
 import org.apache.iotdb.library.util.Util;

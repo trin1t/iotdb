@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.library.drepair;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.drepair.util.LsGreedy;
 import org.apache.iotdb.library.drepair.util.Screen;
 import org.apache.iotdb.library.drepair.util.ValueRepair;

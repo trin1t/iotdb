@@ -19,7 +19,9 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -37,7 +39,7 @@ import java.util.stream.Collectors;
 /*
 This function is used to detect distance-based anomalies.
 */
-public class UOutlier implements UDTF {
+public class UOutlier {
   private int k;
   private double r;
   private int w;
@@ -47,44 +49,38 @@ public class UOutlier implements UDTF {
   private ArrayList<Double> currentValueWindow = new ArrayList<>();
   private Map<Long, Double> outliers = new HashMap<>();
 
-  @Override
-  public void beforeStart(UDFParameters udfParameters, UDTFConfigurations udtfConfigurations)
-      throws Exception {
-    udtfConfigurations
-        .setAccessStrategy(new RowByRowAccessStrategy())
-        .setOutputDataType(udfParameters.getDataType(0));
-    this.k = udfParameters.getIntOrDefault("k", 3);
-    this.r = udfParameters.getDoubleOrDefault("r", 5);
-    this.w = udfParameters.getIntOrDefault("w", 1000);
-    this.s = udfParameters.getIntOrDefault("s", 500);
+  public ArrayList<Pair<Long, Double>> getOutlier(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
 
-    this.i = 0;
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      res.addAll(transform(row));
+    }
 
-    udtfConfigurations.setAccessStrategy(new RowByRowAccessStrategy());
-    udtfConfigurations.setOutputDataType(Type.DOUBLE);
+    res.addAll(terminate());
+
+    return res;
   }
 
-  @Override
-  public void transform(Row row, PointCollector collector) throws Exception {
-    if (!row.isNull(0)) {
+  public void beforeStart(){};
+
+  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
+    //if (!row.isNull(0)) {
+    if (!row.getFields().isEmpty()) {
       if (i >= w && (i - w) % s == 0) detect();
 
       if (i >= w) {
         currentValueWindow.remove(0);
         currentTimeWindow.remove(0);
       }
-      currentTimeWindow.add(row.getTime());
-      currentValueWindow.add(Util.getValueAsDouble(row));
+      currentTimeWindow.add(row.getTimestamp());
+      currentValueWindow.add(row.getFields().get(0).getDoubleV());
       i += 1;
     }
-  }
-
-  @Override
-  public void terminate(PointCollector collector) throws Exception {
-    for (Long time :
-        outliers.keySet().stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList())) {
-      collector.putDouble(time, outliers.get(time));
-    }
+    return res;
   }
 
   private void detect() {
@@ -95,5 +91,13 @@ public class UOutlier implements UDTF {
       if (cnt < this.k && !outliers.keySet().contains(currentTimeWindow.get(j)))
         outliers.put(currentTimeWindow.get(j), currentValueWindow.get(j));
     }
+  }
+
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    for (Long time : outliers.keySet().stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList())) {
+      res.add(Pair.of(time, outliers.get(time)));
+    }
+    return res;
   }
 }

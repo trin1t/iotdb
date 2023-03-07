@@ -19,7 +19,9 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.RowWindow;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -29,13 +31,40 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /** This function is used to detect density anomaly of time series. */
-public class ULOF implements UDTF {
+public class ULOF{
   private double threshold;
   private int multipleK;
   private int dim;
   private String method = "default";
   private int window;
+  int windowSize = 10;
+
+  public ArrayList<Pair<Long, Double>> getLOF(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
+
+    ArrayList<RowRecord> rows = new ArrayList<>();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      rows.add(row);
+      if(rows.size()==windowSize){
+        res.addAll(transform(rows));
+        rows.clear();
+      }
+    }
+    if(rows.size()>0){
+      res.addAll(transform(rows));
+      rows.clear();
+    }
+
+    res.addAll(terminate());
+
+    return res;
+  }
 
   int partition(Double[][] a, int left, int right) {
     Double key = a[left][1];
@@ -116,37 +145,25 @@ public class ULOF implements UDTF {
     return Math.sqrt(sum);
   }
 
-  @Override
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator.validateInputSeriesDataType(0, Type.INT32, Type.INT64, Type.FLOAT, Type.DOUBLE);
-  }
+  public void beforeStart(){}
 
-  @Override
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    configurations
-        .setAccessStrategy(
-            new SlidingSizeWindowAccessStrategy(parameters.getIntOrDefault("window", 10000)))
-        .setOutputDataType(Type.DOUBLE);
-    this.multipleK = parameters.getIntOrDefault("k", 3);
-    this.dim = parameters.getChildExpressionsSize();
-    this.method = parameters.getStringOrDefault("method", "default");
-    this.window = parameters.getIntOrDefault("window", 5);
-  }
+  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
 
-  @Override
-  public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
     if (this.method.equals("default")) {
-      int size = rowWindow.windowSize();
+      int size = rows.size();
       Double[][] knn = new Double[size][dim];
       long[] timestamp = new long[size];
       int i = 0;
       int row = 0;
-      while (row < rowWindow.windowSize()) {
-        timestamp[i] = rowWindow.getRow(row).getTime();
+      while (row < rows.size()) {
+        //timestamp[i] = rowWindow.getRow(row).getTime();
+        timestamp[i] = rows.get(row).getTimestamp();
         for (int j = 0; j < dim; j++) {
-          if (!rowWindow.getRow(row).isNull(j)) {
-            knn[i][j] = Util.getValueAsDouble(rowWindow.getRow(i), j);
+          //if (!rowWindow.getRow(row).isNull(j)) {
+          if (!rows.get(row).getFields().isEmpty()) {
+            //knn[i][j] = Util.getValueAsDouble(rowWindow.getRow(i), j);
+            knn[i][j] = rows.get(i).getFields().get(j).getDoubleV();
           } else {
             i--;
             size--;
@@ -161,24 +178,27 @@ public class ULOF implements UDTF {
         for (int m = 0; m < size; m++) {
           try {
             lof[m] = getLOF(knn, knn[m], size);
-            collector.putDouble(timestamp[m], lof[m]);
+            res.add(Pair.of(timestamp[m], lof[m]));
           } catch (Exception e) {
             throw new Exception("Fail to get LOF " + m, e);
           }
         }
       }
     } else if (this.method.equals("series")) {
-      int size = rowWindow.windowSize() - window + 1;
+      int size = rows.size() - window + 1;
       if (size > 0) {
         Double[][] knn = new Double[size][window];
-        long[] timestamp = new long[rowWindow.windowSize()];
+        long[] timestamp = new long[rows.size()];
         double temp;
         int i = 0;
         int row = 0;
-        while (row < rowWindow.windowSize()) {
-          timestamp[i] = rowWindow.getRow(row).getTime();
-          if (!rowWindow.getRow(row).isNull(0)) {
-            temp = Util.getValueAsDouble(rowWindow.getRow(row), 0);
+        while (row < rows.size()) {
+          //timestamp[i] = rowWindow.getRow(row).getTime();
+          timestamp[i] = rows.get(row).getTimestamp();
+          //if (!rowWindow.getRow(row).isNull(0)) {
+          if (!rows.get(row).getFields().isEmpty()) {
+            //temp = Util.getValueAsDouble(rowWindow.getRow(row), 0);
+            temp = rows.get(row).getFields().get(0).getDoubleV();
             for (int p = 0; p < window; p++) {
               if (i - p < 0) {
                 break;
@@ -199,7 +219,7 @@ public class ULOF implements UDTF {
           for (int m = 0; m < size; m++) {
             try {
               lof[m] = getLOF(knn, knn[m], size);
-              collector.putDouble(timestamp[m], lof[m]);
+              res.add(Pair.of(timestamp[m], lof[m]));
             } catch (Exception e) {
               throw new Exception("Fail to get LOF " + m, e);
             }
@@ -207,8 +227,11 @@ public class ULOF implements UDTF {
         }
       }
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {}
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
+  }
 }

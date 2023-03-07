@@ -19,9 +19,11 @@
 
 package org.apache.iotdb.library.anomaly;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.commons.udf.utils.UDFDataTypeTransformer;
 import org.apache.iotdb.library.anomaly.util.WindowDetect;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.RowWindow;
 import org.apache.iotdb.udf.api.collector.PointCollector;
@@ -31,63 +33,57 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
+import java.util.ArrayList;
+
 /**
  * The function is used to filter anomalies of a numeric time series based on two-sided window
  * detection.
  */
-public class UTwoSidedFilter implements UDTF {
+public class UTwoSidedFilter{
   private double len;
   private double threshold;
+  int windowSize = 10;
 
-  @Override
-  public void validate(UDFParameterValidator validator) throws Exception {
-    validator
-        .validateInputSeriesNumber(1)
-        .validateInputSeriesDataType(0, Type.INT32, Type.INT64, Type.FLOAT, Type.DOUBLE);
+  public ArrayList<Pair<Long, Double>> getTwoSidedFilter(SessionDataset sds) throws Exception{
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    beforeStart();
+
+    ArrayList<RowRecord> rows = new ArrayList<>();
+
+    while(sds.hasNext()){
+      RowRecord row = sds.next();
+      rows.add(row);
+      if(rows.size()==windowSize){
+        res.addAll(transform(rows));
+        rows.clear();
+      }
+    }
+    if(rows.size()>0){
+      res.addAll(transform(rows));
+      rows.clear();
+    }
+
+    res.addAll(terminate());
+
+    return res;
   }
 
-  @Override
-  public void beforeStart(UDFParameters parameters, UDTFConfigurations configurations)
-      throws Exception {
-    configurations
-        .setAccessStrategy(new SlidingSizeWindowAccessStrategy(Integer.MAX_VALUE))
-        .setOutputDataType(parameters.getDataType(0));
-    this.len = parameters.getDoubleOrDefault("len", 5);
-    this.threshold = parameters.getDoubleOrDefault("threshold", 0.4);
-    TSDataType dataType = UDFDataTypeTransformer.transformToTsDataType(parameters.getDataType(0));
-  }
+  public void beforeStart(){}
 
-  @Override
-  public void transform(RowWindow rowWindow, PointCollector collector) throws Exception {
-    WindowDetect wd = new WindowDetect(rowWindow.getRowIterator(), len, threshold);
+  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+
+    WindowDetect wd = new WindowDetect(rows, len, threshold);
     double[] repaired = wd.getRepaired();
     long[] time = wd.getTime();
-    switch (rowWindow.getDataType(0)) {
-      case DOUBLE:
-        for (int i = 0; i < time.length; i++) {
-          collector.putDouble(time[i], repaired[i]);
-        }
-        break;
-      case FLOAT:
-        for (int i = 0; i < time.length; i++) {
-          collector.putFloat(time[i], (float) repaired[i]);
-        }
-        break;
-      case INT32:
-        for (int i = 0; i < time.length; i++) {
-          collector.putInt(time[i], (int) Math.round(repaired[i]));
-        }
-        break;
-      case INT64:
-        for (int i = 0; i < time.length; i++) {
-          collector.putLong(time[i], Math.round(repaired[i]));
-        }
-        break;
-      default:
-        throw new Exception("No such kind of data type.");
+    for (int i = 0; i < time.length; i++) {
+      res.add(Pair.of(time[i], repaired[i]));
     }
+    return res;
   }
 
-  @Override
-  public void terminate(PointCollector collector) throws Exception {}
+  public ArrayList<Pair<Long, Double>> terminate(){
+    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+    return res;
+  }
 }

@@ -20,10 +20,12 @@
 package org.apache.iotdb.library.anomaly.util;
 
 import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.udf.api.access.Row;
 import org.apache.iotdb.udf.api.access.RowIterator;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class WindowDetect {
 
@@ -34,15 +36,17 @@ public class WindowDetect {
   protected double[] original;
   protected double[] repaired;
 
-  public WindowDetect(RowIterator dataIterator, double l, double t) throws Exception {
+  public WindowDetect(ArrayList<RowRecord> dataIterator, double l, double t) throws Exception {
+    Iterator<RowRecord> rowRecordIterator = dataIterator.iterator();
+
     len = l;
     threshold = t;
     ArrayList<Long> timeList = new ArrayList<>();
     ArrayList<Double> originList = new ArrayList<>();
-    while (dataIterator.hasNextRow()) {
-      Row row = dataIterator.next();
-      Double v = Util.getValueAsDouble(row);
-      timeList.add(row.getTime());
+    while (rowRecordIterator.hasNext()) {
+      RowRecord row = rowRecordIterator.next();
+      Double v = row.getFields().get(0).getDoubleV();
+      timeList.add(row.getTimestamp());
       if (v == null || !Double.isFinite(v)) {
         originList.add(Double.NaN);
       } else {

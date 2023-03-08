@@ -19,7 +19,6 @@
 package org.apache.iotdb.library.drepair.util;
 
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.access.RowIterator;
 
 import java.util.ArrayList;
 

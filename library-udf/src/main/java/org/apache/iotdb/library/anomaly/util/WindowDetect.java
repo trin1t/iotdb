@@ -21,8 +21,6 @@ package org.apache.iotdb.library.anomaly.util;
 
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.access.RowIterator;
 
 import java.util.ArrayList;
 import java.util.Iterator;

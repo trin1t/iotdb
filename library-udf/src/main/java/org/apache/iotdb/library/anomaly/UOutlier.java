@@ -19,16 +19,10 @@
 
 package org.apache.iotdb.library.anomaly;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.UDTF;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.collector.PointCollector;
-import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
-import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
-import org.apache.iotdb.udf.api.type.Type;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,11 +43,11 @@ public class UOutlier {
   private ArrayList<Double> currentValueWindow = new ArrayList<>();
   private Map<Long, Double> outliers = new HashMap<>();
 
-  public ArrayList<Pair<Long, Double>> getOutlier(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Double>> getOutlier(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       res.addAll(transform(row));
     }
@@ -63,12 +57,12 @@ public class UOutlier {
     return res;
   }
 
-  public void beforeStart(){};
+  public void beforeStart() {};
 
   public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
 
-    //if (!row.isNull(0)) {
+    // if (!row.isNull(0)) {
     if (!row.getFields().isEmpty()) {
       if (i >= w && (i - w) % s == 0) detect();
 
@@ -88,14 +82,15 @@ public class UOutlier {
       int cnt = 0;
       for (int l = 0; l < w; l++)
         if (Math.abs(currentValueWindow.get(j) - currentValueWindow.get(l)) <= this.r) cnt++;
-      if (cnt < this.k && !outliers.keySet().contains(currentTimeWindow.get(j)))
+      if (cnt < this.k && !outliers.containsKey(currentTimeWindow.get(j)))
         outliers.put(currentTimeWindow.get(j), currentValueWindow.get(j));
     }
   }
 
-  public ArrayList<Pair<Long, Double>> terminate(){
+  public ArrayList<Pair<Long, Double>> terminate() {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-    for (Long time : outliers.keySet().stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList())) {
+    for (Long time :
+        outliers.keySet().stream().sorted(Comparator.naturalOrder()).collect(Collectors.toList())) {
       res.add(Pair.of(time, outliers.get(time)));
     }
     return res;

@@ -19,40 +19,34 @@
 
 package org.apache.iotdb.library.drepair;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.library.drepair.util.TimestampRepair;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.UDTF;
-import org.apache.iotdb.udf.api.access.RowWindow;
-import org.apache.iotdb.udf.api.collector.PointCollector;
-import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameterValidator;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
-import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
-import org.apache.iotdb.udf.api.type.Type;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 
 /** This function is used for timestamp repair. */
-public class UTimestampRepair{
+public class UTimestampRepair {
   int intervalMode;
   int windowSize = 10;
 
-  public ArrayList<Pair<Long, Double>> getTimestampRepair(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Double>> getTimestampRepair(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 
     ArrayList<RowRecord> rows = new ArrayList<>();
 
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       rows.add(row);
-      if(rows.size()==windowSize){
+      if (rows.size() == windowSize) {
         res.addAll(transform(rows));
         rows.clear();
       }
     }
-    if(rows.size()>0){
+    if (rows.size() > 0) {
       res.addAll(transform(rows));
       rows.clear();
     }
@@ -64,7 +58,7 @@ public class UTimestampRepair{
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception{
+  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
 
     TimestampRepair ts = new TimestampRepair(rows, intervalMode, 2);
@@ -72,12 +66,12 @@ public class UTimestampRepair{
     long[] timestamp = ts.getRepaired();
     double[] value = ts.getRepairedValue();
     for (int i = 0; i < timestamp.length; i++) {
-      res.add(Pair.of(timestamp[i],value[i]));
+      res.add(Pair.of(timestamp[i], value[i]));
     }
     return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate(){
+  public ArrayList<Pair<Long, Double>> terminate() {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     return res;
   }

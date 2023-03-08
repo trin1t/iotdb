@@ -19,19 +19,11 @@
 
 package org.apache.iotdb.library.anomaly;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.iotdb.library.util.Util;
+import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.UDTF;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.collector.PointCollector;
-import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameterValidator;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
-import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
-import org.apache.iotdb.udf.api.type.Type;
 
 import com.google.common.math.Quantiles;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 
@@ -39,7 +31,7 @@ import java.util.ArrayList;
 This function is used to detect anomalies based on IQR.
 Stream swap require user to provide Q1 and Q3, while global swap does not.
 */
-public class UIQR{
+public class UIQR {
   ArrayList<Double> value = new ArrayList<>();
   ArrayList<Long> timestamp = new ArrayList<>();
   String compute = "batch";
@@ -47,11 +39,11 @@ public class UIQR{
   double q3 = 0.0d;
   double iqr = 0.0d;
 
-  public ArrayList<Pair<Long, Double>> getIQR(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Double>> getIQR(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       res.addAll(transform(row));
     }
@@ -61,7 +53,7 @@ public class UIQR{
     return res;
   }
 
-  public void beforeStart(){}
+  public void beforeStart() {}
 
   public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
@@ -69,7 +61,7 @@ public class UIQR{
     if (compute.equalsIgnoreCase("stream") && q3 > q1) {
       double v = row.getFields().get(0).getDoubleV();
       if (v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr) {
-        res.add(Pair.of(row.getTimestamp(),v));
+        res.add(Pair.of(row.getTimestamp(), v));
       }
     } else if (compute.equalsIgnoreCase("batch")) {
       double v = row.getFields().get(0).getDoubleV();
@@ -93,5 +85,6 @@ public class UIQR{
         res.add(Pair.of(timestamp.get(i), v));
       }
     }
+    return res;
   }
 }

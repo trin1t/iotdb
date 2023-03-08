@@ -19,29 +19,22 @@
 
 package org.apache.iotdb.library.anomaly;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.library.anomaly.util.StreamMissDetector;
-import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.UDTF;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.collector.PointCollector;
-import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameterValidator;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
-import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
-import org.apache.iotdb.udf.api.type.Type;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 
 /** This function is used to detect missing anomalies. */
 public class UMissDetect {
 
-  public ArrayList<Pair<Long, Boolean>> getMissDetect(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Boolean>> getMissDetect(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
     beforeStart();
 
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       res.addAll(transform(row));
     }
@@ -51,16 +44,16 @@ public class UMissDetect {
     return res;
   }
 
-  private StreamMissDetector detector;
+  private StreamMissDetector detector = new StreamMissDetector(10);
 
-  public void beforeStart(){}
+  public void beforeStart() {}
 
   public ArrayList<Pair<Long, Boolean>> transform(RowRecord row) throws Exception {
     ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
 
     detector.insert(row.getTimestamp(), row.getFields().get(0).getDoubleV());
     while (detector.hasNext()) {
-      res.add(Pair.of(detector.getOutTime(),detector.getOutValue()));
+      res.add(Pair.of(detector.getOutTime(), detector.getOutValue()));
       detector.next();
     }
     return res;
@@ -71,7 +64,7 @@ public class UMissDetect {
 
     detector.flush();
     while (detector.hasNext()) {
-      res.add(Pair.of(detector.getOutTime(),detector.getOutValue()));
+      res.add(Pair.of(detector.getOutTime(), detector.getOutValue()));
       detector.next();
     }
     return res;

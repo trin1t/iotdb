@@ -19,19 +19,11 @@
 
 package org.apache.iotdb.library.anomaly;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.iotdb.commons.udf.utils.UDFDataTypeTransformer;
+import org.apache.iotdb.isession.SessionDataSet;
 import org.apache.iotdb.library.anomaly.util.WindowDetect;
-import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.UDTF;
-import org.apache.iotdb.udf.api.access.RowWindow;
-import org.apache.iotdb.udf.api.collector.PointCollector;
-import org.apache.iotdb.udf.api.customizer.config.UDTFConfigurations;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameterValidator;
-import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
-import org.apache.iotdb.udf.api.customizer.strategy.SlidingSizeWindowAccessStrategy;
-import org.apache.iotdb.udf.api.type.Type;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 
@@ -39,26 +31,26 @@ import java.util.ArrayList;
  * The function is used to filter anomalies of a numeric time series based on two-sided window
  * detection.
  */
-public class UTwoSidedFilter{
-  private double len;
-  private double threshold;
+public class UTwoSidedFilter {
+  private double len = 5;
+  private double threshold = 0.4;
   int windowSize = 10;
 
-  public ArrayList<Pair<Long, Double>> getTwoSidedFilter(SessionDataset sds) throws Exception{
+  public ArrayList<Pair<Long, Double>> getTwoSidedFilter(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 
     ArrayList<RowRecord> rows = new ArrayList<>();
 
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       rows.add(row);
-      if(rows.size()==windowSize){
+      if (rows.size() == windowSize) {
         res.addAll(transform(rows));
         rows.clear();
       }
     }
-    if(rows.size()>0){
+    if (rows.size() > 0) {
       res.addAll(transform(rows));
       rows.clear();
     }
@@ -68,7 +60,7 @@ public class UTwoSidedFilter{
     return res;
   }
 
-  public void beforeStart(){}
+  public void beforeStart() {}
 
   public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
@@ -82,7 +74,7 @@ public class UTwoSidedFilter{
     return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate(){
+  public ArrayList<Pair<Long, Double>> terminate() {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     return res;
   }

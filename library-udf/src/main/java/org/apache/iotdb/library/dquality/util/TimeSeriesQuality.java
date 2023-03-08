@@ -21,8 +21,6 @@ package org.apache.iotdb.library.dquality.util;
 
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.access.RowIterator;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 

@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.library.drepair;
 
-import org.apache.iotdb.isession.SessionDataSet;
+import org.apache.iotdb.session.SessionDataSet;
 import org.apache.iotdb.library.drepair.util.LsGreedy;
 import org.apache.iotdb.library.drepair.util.Screen;
 import org.apache.iotdb.library.drepair.util.ValueRepair;

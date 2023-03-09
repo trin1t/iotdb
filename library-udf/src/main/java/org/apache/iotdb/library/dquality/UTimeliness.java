@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.library.dquality;
 
-import org.apache.iotdb.isession.SessionDataSet;
+import org.apache.iotdb.session.SessionDataSet;
 import org.apache.iotdb.library.dquality.util.TimeSeriesQuality;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
 

@@ -80,4 +80,8 @@ public class Sphere {
   public void setCenteriod(ArrayList<Double> o){
     centeriod = new ArrayList<>(o);
   }
+
+  public double get1dDensity(){
+    return pointNum / radium;
+  }
 }

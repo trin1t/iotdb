@@ -49,9 +49,9 @@ public class UDTFSphereDetection implements UDTF {
     validator
         .validate(
             params -> (int) params[0] < (int) params[1],
-            "parameter $step$ (default 10) should be smaller than $window$ (default 100).",
-            validator.getParameters().getIntOrDefault("step", 10),
-            validator.getParameters().getIntOrDefault("window", 100))
+            "parameter $step$ (default 100) should be smaller than $window$ (default 1000).",
+            validator.getParameters().getIntOrDefault("step", 100),
+            validator.getParameters().getIntOrDefault("window", 1000))
         .validate(x -> (int) x > 0, "parameter $dim$ should be larger than 0.",
             validator.getParameters().getInt("dim"));
   }

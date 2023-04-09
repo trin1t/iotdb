@@ -36,4 +36,8 @@ public class SphereTreeNode {
     sphere = s;
     sons = new HashSet<>();
   }
+
+  public boolean isLeaf(){
+    return sons.isEmpty();
+  }
 }

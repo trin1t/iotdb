@@ -19,13 +19,13 @@
 
 package org.apache.iotdb.library.dquality.util;
 
-import java.util.Iterator;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
-import org.apache.iotdb.isession.SessionDataSet;
+
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /** Class for computing data quality index. */
 public class TimeSeriesQuality {

@@ -18,8 +18,6 @@
  */
 package org.apache.iotdb.library.anomaly;
 
-import java.util.ArrayList;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.iotdb.library.anomaly.util.StreamSphereDetector;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.udf.api.UDTF;
@@ -31,9 +29,11 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
-/**
- * Detect outlier by sphere.
- */
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.ArrayList;
+
+/** Detect outlier by sphere. */
 public class UDTFSphereDetection implements UDTF {
   private StreamSphereDetector detector;
   private int cnt;
@@ -42,8 +42,9 @@ public class UDTFSphereDetection implements UDTF {
   private int dimension;
   private boolean onSliding;
   private ArrayList<Pair<Long, ArrayList<Double>>> points;
-  private double distThreshold;
-  private int anomalyThreshold;
+  private int regenerateThreshold;
+  private double densityThreshold;
+
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
@@ -52,9 +53,12 @@ public class UDTFSphereDetection implements UDTF {
             "parameter $step$ (default 100) should be smaller than $window$ (default 1000).",
             validator.getParameters().getIntOrDefault("step", 100),
             validator.getParameters().getIntOrDefault("window", 1000))
-        .validate(x -> (int) x > 0, "parameter $dim$ should be larger than 0.",
+        .validate(
+            x -> (int) x > 0,
+            "parameter $dim$ should be larger than 0.",
             validator.getParameters().getInt("dim"));
   }
+
   @Override
   public void beforeStart(UDFParameters udfp, UDTFConfigurations udtfc) throws Exception {
     cnt = 0;
@@ -62,9 +66,9 @@ public class UDTFSphereDetection implements UDTF {
     udtfc.setAccessStrategy(new RowByRowAccessStrategy()).setOutputDataType(Type.BOOLEAN);
     window = udfp.getIntOrDefault("window", 100);
     step = udfp.getIntOrDefault("step", 10);
-    distThreshold = udfp.getDoubleOrDefault("dist", 10d);
-    anomalyThreshold = udfp.getIntOrDefault("num_in_cluster", 5);
-    this.detector = new StreamSphereDetector(distThreshold, anomalyThreshold);
+    densityThreshold = udfp.getDoubleOrDefault("density", 10d);
+    regenerateThreshold = udfp.getIntOrDefault("num_in_cluster", 20);
+    this.detector = new StreamSphereDetector(densityThreshold, regenerateThreshold);
     onSliding = false;
     points = new ArrayList<>();
   }
@@ -72,23 +76,22 @@ public class UDTFSphereDetection implements UDTF {
   @Override
   public void transform(Row row, PointCollector collector) throws Exception {
     ArrayList<Double> coordinate = new ArrayList<>();
-    for(int i = 0; i < dimension; i ++){
+    for (int i = 0; i < dimension; i++) {
       coordinate.add(Util.getValueAsDouble(row, i));
     }
-    cnt ++;
-    if(!onSliding){
+    cnt++;
+    if (!onSliding) {
       points.add(Pair.of(row.getTime(), coordinate));
-      if(cnt == window){
-        detector.initializeTree(points, window / 10);
+      if (cnt == window) {
+        detector.initializeTree(points);
         cnt = 0;
         onSliding = true;
         points.clear();
       }
-    }
-    else{
+    } else {
       points.add(Pair.of(row.getTime(), coordinate));
-      if(cnt == step){
-        for(Long p : detector.flush(points)){
+      if (cnt == step) {
+        for (Long p : detector.flush(points)) {
           collector.putBoolean(p, true);
         }
         points.clear();
@@ -99,8 +102,8 @@ public class UDTFSphereDetection implements UDTF {
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for(Long p : detector.mergeSpheres(detector.tree, Long.MAX_VALUE)){
-      collector.putBoolean(p, true);
+    for (Pair<Long, ArrayList<Double>> p : detector.getPossibleOutliers()) {
+      collector.putBoolean(p.getLeft(), true);
     }
   }
 }

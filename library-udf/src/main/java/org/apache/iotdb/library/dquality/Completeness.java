@@ -19,37 +19,37 @@
 
 package org.apache.iotdb.library.dquality;
 
+import org.apache.iotdb.isession.SessionDataSet;
+import org.apache.iotdb.library.dquality.util.TimeSeriesQuality;
+import org.apache.iotdb.tsfile.read.common.RowRecord;
+
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.iotdb.library.dquality.util.TimeSeriesQuality;
-import org.apache.iotdb.isession.SessionDataSet;
-
-import org.apache.iotdb.tsfile.read.common.RowRecord;
 
 /** This function calculates completeness of input series. */
-public class Completeness{
+public class Completeness {
   // 简化初始化设置，配置默认参数，也没有validate环节
   private boolean downtime = true;
   int windowSize = 10;
   // 主入口
-  public ArrayList<Pair<Long, Double>> getCompleteness(SessionDataSet sds)
-      throws Exception {
+  public ArrayList<Pair<Long, Double>> getCompleteness(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 
     ArrayList<RowRecord> rows = new ArrayList<>();
-    while(sds.hasNext()){
+    while (sds.hasNext()) {
       RowRecord row = sds.next();
       rows.add(row);
-      if(rows.size() == windowSize){
+      if (rows.size() == windowSize) {
         res.addAll(transform(rows));
         rows.clear();
       }
     }
-    if(rows.size() > 0){
+    if (rows.size() > 0) {
       res.addAll(transform(rows));
       rows.clear();
     }
@@ -59,9 +59,8 @@ public class Completeness{
     return res;
   }
 
-
   // 为了方便改，这里用了与UDF相同的执行结构
-  public void beforeStart(){
+  public void beforeStart() {
     return;
   }
 
@@ -80,7 +79,7 @@ public class Completeness{
     return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate(){
+  public ArrayList<Pair<Long, Double>> terminate() {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     return res;
   }

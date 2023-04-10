@@ -18,13 +18,12 @@
  */
 package org.apache.iotdb.library.anomaly.util;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import org.apache.commons.lang3.tuple.Pair;
 
-/**
- * Grid used in StreamGridDetector.
- */
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+
+/** Grid used in StreamGridDetector. */
 public class Grid {
   private final ArrayList<Integer> index; // record this is n-th grid on each axis
   private ArrayList<Pair<Double, Double>> border; // record the border of the grid
@@ -32,45 +31,51 @@ public class Grid {
   private ArrayDeque<Long> points;
   private boolean isAnomaly;
 
-  public Grid(ArrayList<Integer> i){
+  public Grid(ArrayList<Integer> i) {
     index = new ArrayList<>(i);
     pointNum = 0;
     points = new ArrayDeque<>();
     isAnomaly = true;
-  }
-  public Grid(ArrayList<Integer> i, int pnum){
-    index = new ArrayList<>(i);
-    pointNum = pnum;
-    points = new ArrayDeque<>();
-    isAnomaly = true;
-  }
-  public Grid(ArrayList<Integer> i, ArrayList<Pair<Double, Double>> b){
-    index = new ArrayList<>(i);
-    border = b;
-    pointNum = 0;
-    points = new ArrayDeque<>();
-    isAnomaly = true;
-  }
-  public Grid(ArrayList<Integer> i, ArrayList<Pair<Double, Double>> b, int pnum){
-    index = new ArrayList<>(i);
-    border = b;
-    pointNum = pnum;
-    isAnomaly = true;
-    points = new ArrayDeque<>(); {
-    };
-  }
-  public void addPoint(long t){
-    points.addLast(t);
-    pointNum ++;
   }
 
-  public ArrayList<Integer> getIndex(){
+  public Grid(ArrayList<Integer> i, int pnum) {
+    index = new ArrayList<>(i);
+    pointNum = pnum;
+    points = new ArrayDeque<>();
+    isAnomaly = true;
+  }
+
+  public Grid(ArrayList<Integer> i, ArrayList<Pair<Double, Double>> b) {
+    index = new ArrayList<>(i);
+    border = b;
+    pointNum = 0;
+    points = new ArrayDeque<>();
+    isAnomaly = true;
+  }
+
+  public Grid(ArrayList<Integer> i, ArrayList<Pair<Double, Double>> b, int pnum) {
+    index = new ArrayList<>(i);
+    border = b;
+    pointNum = pnum;
+    isAnomaly = true;
+    points = new ArrayDeque<>();
+    {
+    }
+    ;
+  }
+
+  public void addPoint(long t) {
+    points.addLast(t);
+    pointNum++;
+  }
+
+  public ArrayList<Integer> getIndex() {
     return index;
   }
 
-  public void setIsAnomaly(boolean a){
+  public void setIsAnomaly(boolean a) {
     isAnomaly = a;
-    if(!isAnomaly){
+    if (!isAnomaly) {
       points = null;
     }
   }
@@ -83,11 +88,11 @@ public class Grid {
     return pointNum;
   }
 
-  public ArrayDeque<Long> getPoints(){
+  public ArrayDeque<Long> getPoints() {
     return points;
   }
 
-  public void setPointNum(int n){
+  public void setPointNum(int n) {
     pointNum = n;
   }
 }

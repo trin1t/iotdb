@@ -18,11 +18,8 @@
  */
 package org.apache.iotdb.library.anomaly;
 
-import java.util.ArrayList;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.math3.stat.descriptive.rank.Median;
-import org.apache.iotdb.library.dprofile.util.MADSketch;
 import org.apache.iotdb.library.anomaly.util.StreamGridDetector;
+import org.apache.iotdb.library.dprofile.util.MADSketch;
 import org.apache.iotdb.library.util.Util;
 import org.apache.iotdb.udf.api.UDTF;
 import org.apache.iotdb.udf.api.access.Row;
@@ -33,10 +30,13 @@ import org.apache.iotdb.udf.api.customizer.parameter.UDFParameters;
 import org.apache.iotdb.udf.api.customizer.strategy.RowByRowAccessStrategy;
 import org.apache.iotdb.udf.api.type.Type;
 
-/**
- * This function put data in grids (hyper-cubes) to find outliers with few neighbours.
- */
-public class UDTFGridDetection implements UDTF{
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
+
+import java.util.ArrayList;
+
+/** This function put data in grids (hyper-cubes) to find outliers with few neighbours. */
+public class UDTFGridDetection implements UDTF {
   private StreamGridDetector detector;
   private int dimension;
   private int cnt;
@@ -45,6 +45,7 @@ public class UDTFGridDetection implements UDTF{
   private boolean onSliding;
   private ArrayList<Pair<Long, ArrayList<Double>>> initialPoints;
   private long lastTimestampOfLastWindow;
+
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
     validator
@@ -53,7 +54,9 @@ public class UDTFGridDetection implements UDTF{
             "parameter $step$ (default 100) should be smaller than $window$ (default 1000).",
             validator.getParameters().getIntOrDefault("step", 100),
             validator.getParameters().getIntOrDefault("window", 1000))
-        .validate(x -> (int) x > 0, "parameter $dim$ should be larger than 0.",
+        .validate(
+            x -> (int) x > 0,
+            "parameter $dim$ should be larger than 0.",
             validator.getParameters().getInt("dim"));
   }
 
@@ -72,20 +75,20 @@ public class UDTFGridDetection implements UDTF{
   @Override
   public void transform(Row row, PointCollector collector) throws Exception {
     ArrayList<Double> coordinate = new ArrayList<>();
-    for(int i = 0; i < dimension; i ++){
+    for (int i = 0; i < dimension; i++) {
       coordinate.add(Util.getValueAsDouble(row, i));
     }
-        cnt ++;
-    if(!onSliding){
+    cnt++;
+    if (!onSliding) {
       initialPoints.add(Pair.of(row.getTime(), coordinate));
-      if(cnt == window){
+      if (cnt == window) {
         double[] medians = new double[dimension];
         double[] mads = new double[dimension];
         MADSketch sk;
-        for(int i = 0; i < dimension; i ++){
+        for (int i = 0; i < dimension; i++) {
           double[] cord = new double[window];
           sk = new MADSketch(0.01);
-          for (int j = 0; j < window; j ++){
+          for (int j = 0; j < window; j++) {
             double c = initialPoints.get(i).getRight().get(j);
             sk.insert(c);
             cord[j] = c;
@@ -95,7 +98,7 @@ public class UDTFGridDetection implements UDTF{
         }
         detector.setGridSize(mads);
         detector.setOrigin(medians);
-        for(Pair<Long, ArrayList<Double>> p : initialPoints){
+        for (Pair<Long, ArrayList<Double>> p : initialPoints) {
           detector.insert(p.getLeft(), p.getRight());
         }
         detector.excludeInlierGrids();
@@ -103,11 +106,10 @@ public class UDTFGridDetection implements UDTF{
         onSliding = true;
         lastTimestampOfLastWindow = row.getTime();
       }
-    }
-    else{
+    } else {
       detector.insert(row.getTime(), coordinate);
-      if(cnt == step){
-        for(Long p : detector.flush(lastTimestampOfLastWindow)){
+      if (cnt == step) {
+        for (Long p : detector.flush(lastTimestampOfLastWindow)) {
           collector.putBoolean(p, true);
         }
         lastTimestampOfLastWindow = row.getTime();
@@ -118,7 +120,7 @@ public class UDTFGridDetection implements UDTF{
 
   @Override
   public void terminate(PointCollector collector) throws Exception {
-    for(Long p : detector.terminate()){
+    for (Long p : detector.terminate()) {
       collector.putBoolean(p, true);
     }
   }

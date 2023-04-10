@@ -424,7 +424,7 @@ public class StreamTimeSeriesQuality {
     }
   }
 
-  public int getSlidingPoints(){
+  public int getSlidingPoints() {
     return slidingPoints;
   }
 }

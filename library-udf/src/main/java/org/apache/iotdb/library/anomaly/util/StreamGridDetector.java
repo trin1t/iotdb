@@ -21,74 +21,73 @@ package org.apache.iotdb.library.anomaly.util;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-/**
- * This class implements UDTFGridDetection.
- */
+/** This class implements UDTFGridDetection. */
 public class StreamGridDetector {
   private final int dimension;
   private double[] gridSize;
   private double[] origin;
   int modN = 101;
-  int[] primes = new int[]{73856093, 19349663, 83492791, 10000103, 53000011};
+  int[] primes = new int[] {73856093, 19349663, 83492791, 10000103, 53000011};
   private final ArrayList<HashSet<Grid>> grids;
   private final HashSet<Grid> possibleAnomalyGrids;
   private int densityThreshold = 10;
-  public StreamGridDetector(int dim){
+
+  public StreamGridDetector(int dim) {
     dimension = dim;
     gridSize = new double[dimension];
     origin = new double[dimension];
     grids = new ArrayList<>();
-    for (int i = 0; i < modN; i ++){
+    for (int i = 0; i < modN; i++) {
       grids.add(new HashSet<>());
     }
     possibleAnomalyGrids = new HashSet<>();
   }
 
-  public StreamGridDetector(int dim, int thre){
+  public StreamGridDetector(int dim, int thre) {
     dimension = dim;
     gridSize = new double[dimension];
     origin = new double[dimension];
     grids = new ArrayList<>();
-    for (int i = 0; i < modN; i ++){
+    for (int i = 0; i < modN; i++) {
       grids.add(new HashSet<>());
     }
     possibleAnomalyGrids = new HashSet<>();
     densityThreshold = thre;
   }
 
-  public void insert(long t, ArrayList<Double> v){
+  public void insert(long t, ArrayList<Double> v) {
     Grid g = findGridByCoordinate(v);
-    if(g.isAnomaly()){
+    if (g.isAnomaly()) {
       g.addPoint(t);
       possibleAnomalyGrids.add(g);
     }
   }
 
-  public void setGridSize(double[] s){
+  public void setGridSize(double[] s) {
     gridSize = s.clone();
   }
 
-  public void setOrigin(double [] o){
+  public void setOrigin(double[] o) {
     origin = o.clone();
   }
 
-  private Grid findGridByCoordinate(ArrayList<Double> v){
+  private Grid findGridByCoordinate(ArrayList<Double> v) {
     ArrayList<Integer> index = new ArrayList<>();
-    for(int i = 0; i < dimension; i ++){
+    for (int i = 0; i < dimension; i++) {
       double cord = v.get(i) - origin[i];
       index.add(cord > 0 ? (int) (cord / gridSize[i]) : (int) (cord / gridSize[i] - 1));
     }
     int gridHash = hashGrid(index);
-    for (Grid g : grids.get(gridHash)){
+    for (Grid g : grids.get(gridHash)) {
       boolean flag = true;
       ArrayList<Integer> gi = g.getIndex();
-      for(int i = 0; i < dimension; i ++){
-        if(!index.get(i).equals(gi.get(i))){
+      for (int i = 0; i < dimension; i++) {
+        if (!index.get(i).equals(gi.get(i))) {
           flag = false;
           break;
         }
       }
-      if(flag){
+      if (flag) {
         return g;
       }
     }
@@ -97,35 +96,34 @@ public class StreamGridDetector {
     return g;
   }
 
-  public ArrayList<Long> flush(long lastTimestamp){
+  public ArrayList<Long> flush(long lastTimestamp) {
     excludeInlierGrids();
     ArrayList<Long> anomalyTimestamps = new ArrayList<>();
     ArrayList<Grid> removeListFromPAG = new ArrayList<>();
-    for(Grid grid : possibleAnomalyGrids){
+    for (Grid grid : possibleAnomalyGrids) {
       long t = grid.getPoints().getFirst();
-      while(t < lastTimestamp){
+      while (t < lastTimestamp) {
         anomalyTimestamps.add(t);
         grid.getPoints().removeFirst();
-        if(grid.getPointNum() == 1){ // no points left
+        if (grid.getPointNum() == 1) { // no points left
           grids.get(grid.hashCode()).remove(grid);
           removeListFromPAG.add(grid);
-        }
-        else{
+        } else {
           t = grid.getPoints().getFirst();
           grid.setPointNum(grid.getPointNum() - 1);
         }
       }
     }
-    for(Grid grid : removeListFromPAG){
+    for (Grid grid : removeListFromPAG) {
       possibleAnomalyGrids.remove(grid);
     }
     return anomalyTimestamps;
   }
 
-  public void excludeInlierGrids(){ // operate on possibleAnomalyGrids
-    for(Grid grid : possibleAnomalyGrids){
+  public void excludeInlierGrids() { // operate on possibleAnomalyGrids
+    for (Grid grid : possibleAnomalyGrids) {
       // dfs search
-      if(!grid.isAnomaly()){
+      if (!grid.isAnomaly()) {
         possibleAnomalyGrids.remove(grid);
         continue;
       }
@@ -134,41 +132,40 @@ public class StreamGridDetector {
     }
   }
 
-  public boolean dfsGrids(Grid grid, int points, HashSet<Grid> searched){
-    if(!grid.isAnomaly()){
+  public boolean dfsGrids(Grid grid, int points, HashSet<Grid> searched) {
+    if (!grid.isAnomaly()) {
       return true;
     }
     searched.add(grid);
     points += grid.getPointNum();
-    if(points > densityThreshold){
+    if (points > densityThreshold) {
       grid.setIsAnomaly(false);
       possibleAnomalyGrids.remove(grid);
       searched.remove(grid);
       return true;
     }
     ArrayList<Integer> index = new ArrayList<>(grid.getIndex());
-    for(int i = 0; i < dimension; i ++){
+    for (int i = 0; i < dimension; i++) {
       index.set(i, index.get(i) - 1);
       int h = hashGrid(index);
       Grid neighbour = null;
-      for(Grid cand : grids.get(h)){
-        if(cand.getIndex().equals(index)){
+      for (Grid cand : grids.get(h)) {
+        if (cand.getIndex().equals(index)) {
           neighbour = cand;
           break;
         }
       }
-      if(neighbour != null){
-        if(neighbour.isAnomaly()){
-          if(!searched.contains(neighbour)){
-            if(dfsGrids(neighbour, points, searched)){
-              for(Grid inlierGrid : searched){
+      if (neighbour != null) {
+        if (neighbour.isAnomaly()) {
+          if (!searched.contains(neighbour)) {
+            if (dfsGrids(neighbour, points, searched)) {
+              for (Grid inlierGrid : searched) {
                 inlierGrid.setIsAnomaly(false);
                 possibleAnomalyGrids.remove(inlierGrid);
               }
             }
           }
-        }
-        else{
+        } else {
           grid.setIsAnomaly(false);
           possibleAnomalyGrids.remove(grid);
           searched.remove(grid);
@@ -177,28 +174,27 @@ public class StreamGridDetector {
       }
       index.set(i, index.get(i) + 1);
     }
-    for(int i = 0; i < dimension; i ++){
+    for (int i = 0; i < dimension; i++) {
       index.set(i, index.get(i) + 1);
       int h = hashGrid(index);
       Grid neighbour = null;
-      for(Grid cand : grids.get(h)){
-        if(cand.getIndex().equals(index)){
+      for (Grid cand : grids.get(h)) {
+        if (cand.getIndex().equals(index)) {
           neighbour = cand;
           break;
         }
       }
-      if(neighbour != null){
-        if(neighbour.isAnomaly()){
-          if(!searched.contains(neighbour)){
-            if(dfsGrids(neighbour, points, searched)){
-              for(Grid inlierGrid : searched){
+      if (neighbour != null) {
+        if (neighbour.isAnomaly()) {
+          if (!searched.contains(neighbour)) {
+            if (dfsGrids(neighbour, points, searched)) {
+              for (Grid inlierGrid : searched) {
                 inlierGrid.setIsAnomaly(false);
                 possibleAnomalyGrids.remove(inlierGrid);
               }
             }
           }
-        }
-        else{
+        } else {
           grid.setIsAnomaly(false);
           possibleAnomalyGrids.remove(grid);
           searched.remove(grid);
@@ -210,18 +206,18 @@ public class StreamGridDetector {
     return false;
   }
 
-  public ArrayList<Long> terminate(){
+  public ArrayList<Long> terminate() {
     excludeInlierGrids();
     ArrayList<Long> anomalyTimestamps = new ArrayList<>();
-    for(Grid grid : possibleAnomalyGrids){
+    for (Grid grid : possibleAnomalyGrids) {
       anomalyTimestamps.addAll(grid.getPoints());
     }
     return anomalyTimestamps;
   }
 
-  private int hashGrid(ArrayList<Integer> index){
+  private int hashGrid(ArrayList<Integer> index) {
     int hash = index.get(0) * primes[0];
-    for(int i = 1; i < dimension; i ++){
+    for (int i = 1; i < dimension; i++) {
       hash = hash ^ (index.get(i) * primes[i % primes.length]);
     }
     return hash % modN;

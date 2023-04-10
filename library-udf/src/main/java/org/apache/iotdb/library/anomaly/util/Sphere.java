@@ -18,14 +18,13 @@
  */
 package org.apache.iotdb.library.anomaly.util;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
-import org.apache.commons.lang3.tuple.Pair;
 
-/**
- * Sphere to construct ball tree.
- */
+/** Sphere to construct ball tree. */
 public class Sphere {
   private ArrayList<Double> centeriod; // record this is n-th grid on each axis
   private double radium;
@@ -34,7 +33,7 @@ public class Sphere {
   private boolean isAnomaly;
   public HashSet<Sphere> sons;
 
-  public Sphere(ArrayList<Double> o, double r, int p){
+  public Sphere(ArrayList<Double> o, double r, int p) {
     centeriod = new ArrayList<>(o);
     radium = r;
     pointNum = p;
@@ -43,18 +42,18 @@ public class Sphere {
     sons = new HashSet<>();
   }
 
-  public void addPoint(long t){ // points are possible anoamlies
+  public void addPoint(long t) { // points are possible anoamlies
     points.addLast(t);
-    pointNum ++;
+    pointNum++;
   }
 
-  public ArrayList<Double> getCenteriod(){
+  public ArrayList<Double> getCenteriod() {
     return centeriod;
   }
 
-  public void setIsAnomaly(boolean a){
+  public void setIsAnomaly(boolean a) {
     isAnomaly = a;
-    if(!isAnomaly){
+    if (!isAnomaly) {
       points = null;
     }
   }
@@ -67,37 +66,38 @@ public class Sphere {
     return pointNum;
   }
 
-  public ArrayDeque<Long> getPoints(){
+  public ArrayDeque<Long> getPoints() {
     return points;
   }
 
-  public void setPointNum(int n){
+  public void setPointNum(int n) {
     pointNum = n;
   }
 
-  public void setRadium(double r){
+  public void setRadium(double r) {
     radium = r;
   }
 
-  public double getRadium(){return radium;}
+  public double getRadium() {
+    return radium;
+  }
 
-  public void setCenteriod(ArrayList<Double> o){
+  public void setCenteriod(ArrayList<Double> o) {
     centeriod = new ArrayList<>(o);
   }
 
-  public double get1dDensity(){
+  public double get1dDensity() {
     return pointNum / radium;
   }
 
   public boolean contain(Pair<Long, ArrayList<Double>> p) throws Exception {
-    if(radium >= SphereDetectionUtil.euDist(centeriod, p.getRight())){
+    if (radium >= SphereDetectionUtil.euDist(centeriod, p.getRight())) {
       return true;
     }
     return false;
   }
 
-  public boolean isLeaf(){
+  public boolean isLeaf() {
     return sons.isEmpty();
   }
-
 }

@@ -273,7 +273,7 @@ public class StreamSphereDetector {
     }
   }
 
-  public ArrayList<Pair<Long, ArrayList<Double>>> getPossibleOutliers(){
+  public ArrayList<Pair<Long, ArrayList<Double>>> getPossibleOutliers() {
     return PossibleOutliers;
   }
 }

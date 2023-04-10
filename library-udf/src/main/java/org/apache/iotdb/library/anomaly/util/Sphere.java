@@ -20,6 +20,8 @@ package org.apache.iotdb.library.anomaly.util;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Sphere to construct ball tree.
@@ -30,6 +32,7 @@ public class Sphere {
   private int pointNum;
   public ArrayDeque<Long> points;
   private boolean isAnomaly;
+  public HashSet<Sphere> sons;
 
   public Sphere(ArrayList<Double> o, double r, int p){
     centeriod = new ArrayList<>(o);
@@ -37,9 +40,10 @@ public class Sphere {
     pointNum = p;
     points = new ArrayDeque<>();
     isAnomaly = true;
+    sons = new HashSet<>();
   }
 
-  public void addPoint(long t){
+  public void addPoint(long t){ // points are possible anoamlies
     points.addLast(t);
     pointNum ++;
   }
@@ -84,4 +88,16 @@ public class Sphere {
   public double get1dDensity(){
     return pointNum / radium;
   }
+
+  public boolean contain(Pair<Long, ArrayList<Double>> p) throws Exception {
+    if(radium >= SphereDetectionUtil.euDist(centeriod, p.getRight())){
+      return true;
+    }
+    return false;
+  }
+
+  public boolean isLeaf(){
+    return sons.isEmpty();
+  }
+
 }

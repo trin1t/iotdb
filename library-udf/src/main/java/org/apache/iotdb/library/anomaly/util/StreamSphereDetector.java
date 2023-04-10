@@ -19,7 +19,9 @@
 package org.apache.iotdb.library.anomaly.util;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
+import java.util.Set;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
@@ -27,257 +29,254 @@ import org.apache.commons.math3.stat.descriptive.rank.Median;
  * This class implements UDTFSphereDetection
  */
 public class StreamSphereDetector {
-  public SphereTreeNode tree = new SphereTreeNode();
-  private double madCoef = 3d;
+  public Sphere root;
   private ArrayList<Pair<Long, ArrayList<Double>>> PossibleOutliers = new ArrayList<>();
-  private double distThreshold;
-  private int anomalyThreshold;
+  public double densityThreshold;
+  public int regenerateThreshold;
 
-  public StreamSphereDetector(double d, int l){
-    distThreshold = d;
-    anomalyThreshold = l;
+  public StreamSphereDetector(double d, int r){
+    densityThreshold = d;
+    regenerateThreshold = r;
   }
 
-  public void initializeTree(ArrayList<Pair<Long, ArrayList<Double>>> points, int k){
-    // k-means clustering
-    int[] seeds = unrepeatedRandInt(k);
-    ArrayList<ArrayList<Double>> centroids = new ArrayList<>();
-    ArrayList<Integer> clusters = new ArrayList<>();  // which cluster each point belongs to
+  public void initializeTree(ArrayList<Pair<Long, ArrayList<Double>>> points)
+      throws Exception {
+    ArrayList<ArrayList<Double>> dists = new ArrayList<>();
+    for(int i = 0; i < points.size() - 1; i ++){
+      dists.add(new ArrayList<>());
+      for(int j = i + 1; j < points.size() ; j ++){
+        dists.get(i).add(0d);
+      }
+    }
+    HashMap<Integer, Sphere> spheres = new HashMap<>();
     for(int i = 0; i < points.size(); i ++){
-      clusters.add(-1);
+      Sphere tempSphere = new Sphere(points.get(i).getRight(), 0 , 0);
+      tempSphere.addPoint(points.get(i).getLeft());
+      spheres.put(i, tempSphere);
     }
-    for(int i = 0; i < k; i ++){
-      clusters.set(seeds[i], i);
-      centroids.add(new ArrayList<>(points.get(i).getRight()));
+
+    for(int i = 0; i < points.size() - 1; i ++){
+      for(int j = i + 1; j < points.size() ; j ++){
+        double d = SphereDetectionUtil.centerDist(spheres.get(i), spheres.get(j));
+        dists.get(i).set(j - i - 1, d);
+      }
     }
-    int MaxIter = 1000;
-    for(int iter = 1; iter <= MaxIter; iter ++){
-      boolean isStable = true;
-      for(int i = 0; i < points.size(); i ++){
-        double minDist = Double.MAX_VALUE;
-        int cluster = -1;
-        for(int j = 0; j < k; j ++){
-          double dist = euDist(points.get(i).getRight(), centroids.get(j));
-          if(dist < minDist){
-            minDist = dist;
-            cluster = j;
+
+    while(spheres.size() > 1){
+      double minDist = Double.MAX_VALUE;
+      int minI = -1, minJ = -1;
+      Set<Integer> keys = spheres.keySet();
+      for(Integer i : keys){
+        for(Integer j : keys){
+          if(i < j && dists.get(i).get(j - i -1) < minDist){
+            minDist = dists.get(i).get(j - i -1);
+            minI = i;
+            minJ = j;
           }
         }
-        if(cluster != clusters.get(i)){
-          clusters.set(i, cluster);
-          isStable = false;
+      }
+      ArrayList<Sphere> meregList = new ArrayList<>();
+      Sphere newSphere = SphereDetectionUtil.merge(spheres.get(minI), spheres.get(minJ));
+      spheres.remove(minJ);
+      spheres.put(minI, newSphere);
+      for(Integer j : spheres.keySet()){
+        if(minI > j){
+          dists.get(j).set(minI - j - 1, SphereDetectionUtil.centerDist(newSphere, spheres.get(j)));
+        }
+        else if(minI < j){
+          dists.get(minI).set(j - minI - 1, SphereDetectionUtil.centerDist(newSphere, spheres.get(j)));
         }
       }
-      if(isStable){
-        break;
+      keys = spheres.keySet();
+      for(Integer key : keys){
+        if(key < minI){
+          if(dists.get(key).get(minI - key - 1) <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())){
+            meregList.add(spheres.get(key));
+            spheres.remove(key);
+          }
+        }
+        else if(key > minI){
+          if(dists.get(minI).get(key - minI - 1) <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())){
+            meregList.add(spheres.get(key));
+            spheres.remove(key);
+          }
+        }
+      }
+      newSphere.sons.addAll(meregList);
+
+
+      if(newSphere.get1dDensity() > densityThreshold){
+        newSphere.setIsAnomaly(false);
+        newSphere.sons.clear();
       }
       else{
-        // update centroids
-        for (int i = 0; i < k; i ++){
-          ArrayList<Double> center = new ArrayList<>();
-          for(int j = 0; j < points.get(0).getRight().size(); j ++){
-            center.add(0d);
+        ArrayList<Sphere> removeList = new ArrayList<>();
+        for(Sphere s : newSphere.sons){
+          if(s.getRadium() == 0){
+            PossibleOutliers.add(Pair.of(s.points.getFirst(),s.getCenteriod()));
+            removeList.add(s);
           }
-          int p = 0;
-          for(int j = 0; j < points.size(); j ++){
-            if(clusters.get(j) == i){
-              for(int n = 0; n < points.get(0).getRight().size(); n ++){
-                center.set(n, (center.get(n) * p + points.get(j).getRight().get(k))/ (p+1));
-                p ++;
-              }
-            }
-          }
-          centroids.set(i, new ArrayList<>(center));
+        }
+        for(Sphere s:removeList){
+          newSphere.sons.remove(s);
         }
       }
-    }
-    // find possible outliers
-    ArrayList<ArrayList<Double>> dists = new ArrayList<>();
-    double[] madDists = new double[k];
-    for(int i = 0; i < k; i ++){
-      dists.add(new ArrayList<>());
-    }
-    for(int i = 0; i < points.size(); i ++){
-      dists.get(clusters.get(i)).add(euDist(points.get(i).getRight(),
-          centroids.get(clusters.get(i))));
-    }
-    for(int i = 0; i < k; i ++){
-      double[] ad = dists.get(i).stream().mapToDouble(Double::valueOf).toArray();
-      double med = new Median().evaluate(ad);
-      for(int j = 0; j < dists.get(i).size(); j ++){
-        ad[i] = Math.abs(ad[i] - med);
-      }
-      double mad = new Median().evaluate(ad);
-      for(int j = 0; j < dists.get(i).size(); j ++){
-        if(Math.abs(dists.get(i).get(j) - med) > madCoef * mad){
-          PossibleOutliers.add(points.get(j));
-          clusters.set(j, -1);
-        }
-      }
-    }
-    // create spheres
-    for(int i = 0; i < k; i ++){
-      double r = 0;
-      int pnum = 0;
-      for (int j = 0; j < points.size(); j ++){
-        if(clusters.get(j) == i){
-          pnum ++;
-          r = Math.max(r, dists.get(i).get(j));
-        }
-      }
-      tree.sons.add(new SphereTreeNode(new Sphere(centroids.get(i), r, pnum)));
+      root = spheres.get(0);
     }
   }
 
-  public ArrayList<Long> flush(ArrayList<Pair<Long, ArrayList<Double>>> points){
-    ArrayList<Long> outlierTimestamps = new ArrayList<>();
-    long firstTimestamp = points.get(0).getLeft();
-    ArrayList<Double> dists = new ArrayList<>();
-    for(int i = 0; i < points.size(); i ++){
-      SphereTreeNode n = tree;
-      while(n.sons.size() > 0){
-        boolean insideASonSphere = false;
-        double min_dist_delta = Double.MAX_VALUE;
-        Sphere nearestSphere = null;
-        for(SphereTreeNode node : n.sons){
-          double dist = euDist(node.sphere.getCenteriod(), points.get(i).getRight());
-          if(dist <= node.sphere.getRadium()){
-            node.sphere.setPointNum(node.sphere.getPointNum() + 1);
-            insideASonSphere = true;
-            break;
-          }
-          else if(min_dist_delta > dist - node.sphere.getRadium()){
-            min_dist_delta = dist - n.sphere.getRadium();
-            nearestSphere = n.sphere;
-          }
-        }
-        if(! insideASonSphere){
-          if(min_dist_delta < distThreshold && nearestSphere != null){
-            nearestSphere.setPointNum(nearestSphere.getPointNum() + 1);
-            nearestSphere.setRadium(nearestSphere.getRadium() + min_dist_delta);
-          }
-          break;
-        }
-      }
-    }
-    // try to construct new spheres
-    SphereTreeNode newRoot = new SphereTreeNode();
-    for(int i = 0; i < PossibleOutliers.size(); i ++){
-      Sphere s = new Sphere(new ArrayList<>(PossibleOutliers.get(i).getRight()), distThreshold,0);
-      s.addPoint(PossibleOutliers.get(i).getLeft());
-      newRoot.sons.add(new SphereTreeNode(s));
-    }
-    PossibleOutliers.clear();
-    mergeSpheres(newRoot, firstTimestamp);
-    tree.sons.add(newRoot);
-    // merge spheres
-    outlierTimestamps.addAll(mergeSpheres(tree, firstTimestamp));
-    return outlierTimestamps;
-  }
-
-  public ArrayList<Long> mergeSpheres(SphereTreeNode node, Long l){
-    for(SphereTreeNode n : node.sons){
-      if(n.sons.size() > 1){
-        mergeSpheres(node, l);
-      }
-    }
-    boolean isChanged;
-    do{
-      isChanged = false;
-      for(SphereTreeNode s1 : node.sons){
-        for(SphereTreeNode s2 : node.sons){
-          if(s1 != s2){
-            double centDist = euDist(s1.sphere.getCenteriod(), s2.sphere.getCenteriod());
-            if(centDist * 1.5 < s1.sphere.getRadium() + s2.sphere.getRadium()){
-              ArrayList<Double> newCentroid = newCenteriod(s1.sphere.getCenteriod(), s2.sphere.getCenteriod(), s1.sphere.getRadium(), s2.sphere.getRadium());
-              SphereTreeNode newNode = new SphereTreeNode(new Sphere(newCentroid, centDist / 2, s1.sphere.getPointNum() + s2.sphere.getPointNum()));
-              Long t1 = s1.sphere.points.removeFirst(), t2 = s2.sphere.points.removeFirst();
-              if(newNode.sphere.getPointNum() > anomalyThreshold){
-                newNode.sphere.setIsAnomaly(false);
-              }
-              else{
-                while (s1.sphere.points.size() != 0 || s2.sphere.points.size() != 0) {
-                  if (t1 < t2) {
-                    newNode.sphere.points.addFirst(t1);
-                    if (t1 < Long.MAX_VALUE && s1.sphere.points.size() > 0) {
-                      t1 = s1.sphere.points.removeFirst();
-                      newNode.sphere.points.addLast(t1);
-                    } else {
-                      t1 = Long.MAX_VALUE;
-                    }
-                  } else {
-                    if (t2 < Long.MAX_VALUE && s2.sphere.points.size() > 0) {
-                      t2 = s2.sphere.points.removeFirst();
-                      newNode.sphere.points.addLast(t2);
-                    } else {
-                      t2 = Long.MAX_VALUE;
-                    }
-                  }
-                }
-              }
-              node.sons.remove(s1);
-              node.sons.remove(s2);
-              node.sons.add(newNode);
-              isChanged = true;
-              break;
-            }
-          }
-        }
-        if(isChanged){
-          break;
-        }
-      }
-    }while (!isChanged);
+  public ArrayList<Long> flush(ArrayList<Pair<Long, ArrayList<Double>>> points) throws Exception {
+    ArrayList<Pair<Long, ArrayList<Double>>> newPossibleOutliers = new ArrayList<>();
     ArrayList<Long> res = new ArrayList<>();
-    for(SphereTreeNode s : node.sons){
-      if(s.sphere.isAnomaly()){
-        while(s.sphere.points.size() > 0){
-          Long t = s.sphere.points.getFirst();
-          if(t < l){
-            res.add(t);
-            s.sphere.points.removeFirst();
-          }
-          else{
-            break;
-          }
+    for(Pair<Long, ArrayList<Double>> p : points){
+      Sphere nearestFather = SphereDetectionUtil.findFatherOfNearest(root, p);
+      Sphere nearest = SphereDetectionUtil.find(nearestFather, p);
+      if(nearest.contain(p)){
+        nearest.setPointNum(nearest.getPointNum() + 1);
+      }
+      else{
+        Sphere newSphere = SphereDetectionUtil.merge(new Sphere(p.getRight(), 0, 1), nearest);
+        if(newSphere.get1dDensity() > densityThreshold){
+          newSphere.sons.clear();
+          nearestFather.sons.remove(nearest);
+          nearestFather.sons.add(newSphere);
+        }
+        else{
+          newSphere.sons.removeIf(s->s.getRadium()==0);
+          newPossibleOutliers.add(p);
         }
       }
     }
+
+    for(Pair<Long, ArrayList<Double>> p : PossibleOutliers){
+      Sphere nearestFather = SphereDetectionUtil.findFatherOfNearest(root, p);
+      Sphere nearest = SphereDetectionUtil.find(nearestFather, p);
+      if(nearest.contain(p)){
+        nearest.setPointNum(nearest.getPointNum() + 1);
+      }
+      else{
+        Sphere newSphere = SphereDetectionUtil.merge(new Sphere(p.getRight(), 0, 1), nearest);
+        if(newSphere.get1dDensity() > densityThreshold){
+          newSphere.sons.clear();
+          nearestFather.sons.remove(nearest);
+          nearestFather.sons.add(newSphere);
+        }
+        else{
+          newSphere.sons.removeIf(s->s.getRadium()==0);
+          res.add(p.getLeft());
+        }
+      }
+    }
+    ArrayList<Pair<Long, ArrayList<Double>>> allPossibleOutliers = new ArrayList<>();
+    if(res.size() + newPossibleOutliers.size() > regenerateThreshold){
+      int j = 0;
+      for(int i = 0; i < res.size(); i ++){
+        while(!PossibleOutliers.get(j).getLeft().equals(res.get(i))){
+          j ++;
+        }
+        allPossibleOutliers.add(PossibleOutliers.get(j));
+      }
+      allPossibleOutliers.addAll(newPossibleOutliers);
+      StreamSphereDetector newDetector = new StreamSphereDetector(densityThreshold, regenerateThreshold);
+      newDetector.initializeTree(allPossibleOutliers);
+      newPossibleOutliers = newDetector.PossibleOutliers;
+      ArrayList<Sphere> leaves = new ArrayList<>();
+      SphereDetectionUtil.getLeaves(root, leaves);
+      SphereDetectionUtil.getLeaves(root, leaves);
+      createTree(leaves);
+      res = new ArrayList<>();
+      for(Pair<Long,ArrayList<Double>> p:PossibleOutliers){
+        res.add(p.getLeft());
+      }
+    }
+
+    PossibleOutliers = newPossibleOutliers;
     return res;
   }
 
-  private ArrayList<Double> newCenteriod(ArrayList<Double> o1, ArrayList<Double> o2, double r1, double r2){
-    ArrayList<Double> res = new ArrayList<>();
-    for(int i = 0; i < o1.size(); i ++){
-      res.add(o1.get(i) * r2 / (r1 + r2) + o2.get(i) * r1 / (r1 + r2));
+  public void createTree(ArrayList<Sphere> sphereList) throws Exception {
+    if(sphereList.size() == 1){
+      root = sphereList.get(0);
     }
-    return res;
-  }
-
-  public double euDist(ArrayList<Double> x, ArrayList<Double> y){
-    double dist = 0;
-    if(x.size() == y.size()){
-      for(int i = 0; i < x.size(); i ++){
-        dist += (x.get(i) - y.get(i)) * (x.get(i) - y.get(i));
-      }
-      return Math.sqrt(dist);
-    }
-    return -1;
-  }
-
-  public int[] unrepeatedRandInt(int k) {
-    int[] intRandom = new int[k];
-    ArrayList<Integer> mylist = new ArrayList<>();
-    Random rd = new Random();
-    while(mylist.size() < k) {
-      int num = rd.nextInt(k);
-      if(!mylist.contains(num)) {
-        mylist.add(num);
+    ArrayList<ArrayList<Double>> dists = new ArrayList<>();
+    for(int i = 0; i < sphereList.size() - 1; i ++){
+      dists.add(new ArrayList<>());
+      for(int j = i + 1; j < sphereList.size() ; j ++){
+        dists.get(i).add(0d);
       }
     }
-    for(int i = 0; i <mylist.size();i++) {
-      intRandom[i] = mylist.get(i);
+    HashMap<Integer, Sphere> spheres = new HashMap<>();
+    for(int i = 0; i < sphereList.size(); i ++){
+      spheres.put(i, sphereList.get(i));
     }
-    return intRandom;
+
+    for(int i = 0; i < spheres.size() - 1; i ++){
+      for(int j = i + 1; j < spheres.size() ; j ++){
+        double d = SphereDetectionUtil.centerDist(spheres.get(i), spheres.get(j));
+        dists.get(i).set(j - i - 1, d);
+      }
+    }
+
+    while(spheres.size() > 1){
+      double minDist = Double.MAX_VALUE;
+      int minI = -1, minJ = -1;
+      Set<Integer> keys = spheres.keySet();
+      for(Integer i : keys){
+        for(Integer j : keys){
+          if(i < j && dists.get(i).get(j - i -1) < minDist){
+            minDist = dists.get(i).get(j - i -1);
+            minI = i;
+            minJ = j;
+          }
+        }
+      }
+      ArrayList<Sphere> meregList = new ArrayList<>();
+      Sphere newSphere = SphereDetectionUtil.merge(spheres.get(minI), spheres.get(minJ));
+      spheres.remove(minJ);
+      spheres.put(minI, newSphere);
+      for(Integer j : spheres.keySet()){
+        if(minI > j){
+          dists.get(j).set(minI - j - 1, SphereDetectionUtil.centerDist(newSphere, spheres.get(j)));
+        }
+        else if(minI < j){
+          dists.get(minI).set(j - minI - 1, SphereDetectionUtil.centerDist(newSphere, spheres.get(j)));
+        }
+      }
+      keys = spheres.keySet();
+      for(Integer key : keys){
+        if(key < minI){
+          if(dists.get(key).get(minI - key - 1) <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())){
+            meregList.add(spheres.get(key));
+            spheres.remove(key);
+          }
+        }
+        else if(key > minI){
+          if(dists.get(minI).get(key - minI - 1) <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())){
+            meregList.add(spheres.get(key));
+            spheres.remove(key);
+          }
+        }
+      }
+      newSphere.sons.addAll(meregList);
+
+
+      if(newSphere.get1dDensity() > densityThreshold){
+        newSphere.setIsAnomaly(false);
+        newSphere.sons.clear();
+      }
+      else{
+        ArrayList<Sphere> removeList = new ArrayList<>();
+        for(Sphere s : newSphere.sons){
+          if(s.getRadium() == 0){
+            PossibleOutliers.add(Pair.of(s.points.getFirst(),s.getCenteriod()));
+            removeList.add(s);
+          }
+        }
+        for(Sphere s:removeList){
+          newSphere.sons.remove(s);
+        }
+      }
+      root = spheres.get(0);
+    }
   }
 }

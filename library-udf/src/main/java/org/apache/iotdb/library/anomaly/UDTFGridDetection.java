@@ -89,7 +89,7 @@ public class UDTFGridDetection implements UDTF {
           double[] cord = new double[window];
           sk = new MADSketch(0.01);
           for (int j = 0; j < window; j++) {
-            double c = initialPoints.get(i).getRight().get(j);
+            double c = initialPoints.get(j).getRight().get(i);
             sk.insert(c);
             cord[j] = c;
           }

@@ -106,8 +106,9 @@ public class StreamGridDetector {
         anomalyTimestamps.add(t);
         grid.getPoints().removeFirst();
         if (grid.getPointNum() == 1) { // no points left
-          grids.get(grid.hashCode()).remove(grid);
+          grids.get(hashGrid(grid.getIndex())).remove(grid);
           removeListFromPAG.add(grid);
+          break;
         } else {
           t = grid.getPoints().getFirst();
           grid.setPointNum(grid.getPointNum() - 1);
@@ -121,18 +122,23 @@ public class StreamGridDetector {
   }
 
   public void excludeInlierGrids() { // operate on possibleAnomalyGrids
+    ArrayList<Grid> remmoveList = new ArrayList<>();
     for (Grid grid : possibleAnomalyGrids) {
       // dfs search
       if (!grid.isAnomaly()) {
-        possibleAnomalyGrids.remove(grid);
+        remmoveList.add(grid);
         continue;
       }
       HashSet<Grid> searchedGrids = new HashSet<>();
-      dfsGrids(grid, 0, searchedGrids);
+      dfsGrids(grid, 0, searchedGrids, remmoveList);
+    }
+    for (Grid grid : remmoveList) {
+      possibleAnomalyGrids.remove(grid);
     }
   }
 
-  public boolean dfsGrids(Grid grid, int points, HashSet<Grid> searched) {
+  public boolean dfsGrids(
+      Grid grid, int points, HashSet<Grid> searched, ArrayList<Grid> removeList) {
     if (!grid.isAnomaly()) {
       return true;
     }
@@ -140,8 +146,7 @@ public class StreamGridDetector {
     points += grid.getPointNum();
     if (points > densityThreshold) {
       grid.setIsAnomaly(false);
-      possibleAnomalyGrids.remove(grid);
-      searched.remove(grid);
+      removeList.add(grid);
       return true;
     }
     ArrayList<Integer> index = new ArrayList<>(grid.getIndex());
@@ -158,17 +163,16 @@ public class StreamGridDetector {
       if (neighbour != null) {
         if (neighbour.isAnomaly()) {
           if (!searched.contains(neighbour)) {
-            if (dfsGrids(neighbour, points, searched)) {
+            if (dfsGrids(neighbour, points, searched, removeList)) {
               for (Grid inlierGrid : searched) {
                 inlierGrid.setIsAnomaly(false);
-                possibleAnomalyGrids.remove(inlierGrid);
+                removeList.add(inlierGrid);
               }
             }
           }
         } else {
           grid.setIsAnomaly(false);
-          possibleAnomalyGrids.remove(grid);
-          searched.remove(grid);
+          removeList.add(grid);
           return true;
         }
       }
@@ -187,17 +191,16 @@ public class StreamGridDetector {
       if (neighbour != null) {
         if (neighbour.isAnomaly()) {
           if (!searched.contains(neighbour)) {
-            if (dfsGrids(neighbour, points, searched)) {
+            if (dfsGrids(neighbour, points, searched, removeList)) {
               for (Grid inlierGrid : searched) {
                 inlierGrid.setIsAnomaly(false);
-                possibleAnomalyGrids.remove(inlierGrid);
+                removeList.add(inlierGrid);
               }
             }
           }
         } else {
           grid.setIsAnomaly(false);
-          possibleAnomalyGrids.remove(grid);
-          searched.remove(grid);
+          removeList.add(grid);
           return true;
         }
       }
@@ -220,6 +223,6 @@ public class StreamGridDetector {
     for (int i = 1; i < dimension; i++) {
       hash = hash ^ (index.get(i) * primes[i % primes.length]);
     }
-    return hash % modN;
+    return Math.abs(hash % modN);
   }
 }

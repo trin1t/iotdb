@@ -50,14 +50,12 @@ public class StreamSphereDetector {
       tempSphere.addPoint(points.get(i).getLeft());
       spheres.put(i, tempSphere);
     }
-
     for (int i = 0; i < points.size() - 1; i++) {
       for (int j = i + 1; j < points.size(); j++) {
         double d = SphereDetectionUtil.centerDist(spheres.get(i), spheres.get(j));
         dists.get(i).set(j - i - 1, d);
       }
     }
-
     while (spheres.size() > 1) {
       double minDist = Double.MAX_VALUE;
       int minI = -1, minJ = -1;
@@ -85,23 +83,26 @@ public class StreamSphereDetector {
         }
       }
       keys = spheres.keySet();
+      ArrayList<Integer> removeKeys = new ArrayList<>();
       for (Integer key : keys) {
         if (key < minI) {
           if (dists.get(key).get(minI - key - 1)
               <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())) {
             meregList.add(spheres.get(key));
-            spheres.remove(key);
+            removeKeys.add(key);
           }
         } else if (key > minI) {
           if (dists.get(minI).get(key - minI - 1)
               <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())) {
             meregList.add(spheres.get(key));
-            spheres.remove(key);
+            removeKeys.add(key);
           }
         }
       }
+      for (Integer key : removeKeys) {
+        spheres.remove(key);
+      }
       newSphere.sons.addAll(meregList);
-
       if (newSphere.get1dDensity() > densityThreshold) {
         newSphere.setIsAnomaly(false);
         newSphere.sons.clear();
@@ -117,7 +118,9 @@ public class StreamSphereDetector {
           newSphere.sons.remove(s);
         }
       }
-      root = spheres.get(0);
+    }
+    for (Sphere s : spheres.values()) {
+      root = s;
     }
   }
 
@@ -141,7 +144,6 @@ public class StreamSphereDetector {
         }
       }
     }
-
     for (Pair<Long, ArrayList<Double>> p : PossibleOutliers) {
       Sphere nearestFather = SphereDetectionUtil.findFatherOfNearest(root, p);
       Sphere nearest = SphereDetectionUtil.find(nearestFather, p);
@@ -182,7 +184,6 @@ public class StreamSphereDetector {
         res.add(p.getLeft());
       }
     }
-
     PossibleOutliers = newPossibleOutliers;
     return res;
   }
@@ -202,14 +203,12 @@ public class StreamSphereDetector {
     for (int i = 0; i < sphereList.size(); i++) {
       spheres.put(i, sphereList.get(i));
     }
-
     for (int i = 0; i < spheres.size() - 1; i++) {
       for (int j = i + 1; j < spheres.size(); j++) {
         double d = SphereDetectionUtil.centerDist(spheres.get(i), spheres.get(j));
         dists.get(i).set(j - i - 1, d);
       }
     }
-
     while (spheres.size() > 1) {
       double minDist = Double.MAX_VALUE;
       int minI = -1, minJ = -1;
@@ -237,23 +236,26 @@ public class StreamSphereDetector {
         }
       }
       keys = spheres.keySet();
+      ArrayList<Integer> removeKeys = new ArrayList<>();
       for (Integer key : keys) {
         if (key < minI) {
           if (dists.get(key).get(minI - key - 1)
               <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())) {
             meregList.add(spheres.get(key));
-            spheres.remove(key);
+            removeKeys.add(key);
           }
         } else if (key > minI) {
           if (dists.get(minI).get(key - minI - 1)
               <= Math.abs(spheres.get(key).getRadium() - newSphere.getRadium())) {
             meregList.add(spheres.get(key));
-            spheres.remove(key);
+            removeKeys.add(key);
           }
         }
       }
+      for (Integer key : removeKeys) {
+        spheres.remove(key);
+      }
       newSphere.sons.addAll(meregList);
-
       if (newSphere.get1dDensity() > densityThreshold) {
         newSphere.setIsAnomaly(false);
         newSphere.sons.clear();
@@ -269,7 +271,9 @@ public class StreamSphereDetector {
           newSphere.sons.remove(s);
         }
       }
-      root = spheres.get(0);
+    }
+    for (Sphere s : spheres.values()) {
+      root = s;
     }
   }
 

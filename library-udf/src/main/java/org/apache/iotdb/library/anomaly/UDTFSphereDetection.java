@@ -44,6 +44,7 @@ public class UDTFSphereDetection implements UDTF {
   private ArrayList<Pair<Long, ArrayList<Double>>> points;
   private int regenerateThreshold;
   private double densityThreshold;
+  private double distanceThreshold;
 
   @Override
   public void validate(UDFParameterValidator validator) throws Exception {
@@ -67,8 +68,10 @@ public class UDTFSphereDetection implements UDTF {
     window = udfp.getIntOrDefault("window", 100);
     step = udfp.getIntOrDefault("step", 10);
     densityThreshold = udfp.getDoubleOrDefault("density", 10d);
+    distanceThreshold = udfp.getDoubleOrDefault("distance", 10d);
     regenerateThreshold = udfp.getIntOrDefault("num_in_cluster", 20);
-    this.detector = new StreamSphereDetector(densityThreshold, regenerateThreshold);
+    this.detector =
+        new StreamSphereDetector(densityThreshold, distanceThreshold, regenerateThreshold);
     onSliding = false;
     points = new ArrayList<>();
   }
@@ -91,7 +94,8 @@ public class UDTFSphereDetection implements UDTF {
     } else {
       points.add(Pair.of(row.getTime(), coordinate));
       if (cnt == step) {
-        for (Long p : detector.flush(points)) {
+        ArrayList<Long> outliers = detector.flush(points);
+        for (Long p : outliers) {
           collector.putBoolean(p, true);
         }
         points.clear();

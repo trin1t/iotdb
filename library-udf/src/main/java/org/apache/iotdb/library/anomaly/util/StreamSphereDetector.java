@@ -29,10 +29,12 @@ public class StreamSphereDetector {
   public Sphere root;
   private ArrayList<Pair<Long, ArrayList<Double>>> PossibleOutliers = new ArrayList<>();
   public double densityThreshold;
+  public double distanceThreshold;
   public int regenerateThreshold;
 
-  public StreamSphereDetector(double d, int r) {
-    densityThreshold = d;
+  public StreamSphereDetector(double d1, double d2, int r) {
+    densityThreshold = d1;
+    distanceThreshold = d2;
     regenerateThreshold = r;
   }
 
@@ -71,6 +73,8 @@ public class StreamSphereDetector {
       }
       ArrayList<Sphere> meregList = new ArrayList<>();
       Sphere newSphere = SphereDetectionUtil.merge(spheres.get(minI), spheres.get(minJ));
+      boolean flag =
+          SphereDetectionUtil.dist(spheres.get(minI), spheres.get(minJ)) < distanceThreshold;
       spheres.remove(minJ);
       spheres.put(minI, newSphere);
       for (Integer j : spheres.keySet()) {
@@ -103,7 +107,7 @@ public class StreamSphereDetector {
         spheres.remove(key);
       }
       newSphere.sons.addAll(meregList);
-      if (newSphere.get1dDensity() > densityThreshold) {
+      if (newSphere.get1dDensity() > densityThreshold && flag) {
         newSphere.setIsAnomaly(false);
         newSphere.sons.clear();
       } else {
@@ -133,8 +137,10 @@ public class StreamSphereDetector {
       if (nearest.contain(p)) {
         nearest.setPointNum(nearest.getPointNum() + 1);
       } else {
-        Sphere newSphere = SphereDetectionUtil.merge(new Sphere(p.getRight(), 0, 1), nearest);
-        if (newSphere.get1dDensity() > densityThreshold) {
+        Sphere newPointSphere = new Sphere(p.getRight(), 0, 1);
+        Sphere newSphere = SphereDetectionUtil.merge(newPointSphere, nearest);
+        boolean flag = SphereDetectionUtil.dist(newPointSphere, newSphere) < distanceThreshold;
+        if (newSphere.get1dDensity() > densityThreshold && flag) {
           newSphere.sons.clear();
           nearestFather.sons.remove(nearest);
           nearestFather.sons.add(newSphere);
@@ -150,8 +156,10 @@ public class StreamSphereDetector {
       if (nearest.contain(p)) {
         nearest.setPointNum(nearest.getPointNum() + 1);
       } else {
-        Sphere newSphere = SphereDetectionUtil.merge(new Sphere(p.getRight(), 0, 1), nearest);
-        if (newSphere.get1dDensity() > densityThreshold) {
+        Sphere newPointSphere = new Sphere(p.getRight(), 0, 1);
+        Sphere newSphere = SphereDetectionUtil.merge(newPointSphere, nearest);
+        boolean flag = SphereDetectionUtil.dist(newPointSphere, newSphere) < distanceThreshold;
+        if (newSphere.get1dDensity() > densityThreshold && flag) {
           newSphere.sons.clear();
           nearestFather.sons.remove(nearest);
           nearestFather.sons.add(newSphere);
@@ -172,7 +180,7 @@ public class StreamSphereDetector {
       }
       allPossibleOutliers.addAll(newPossibleOutliers);
       StreamSphereDetector newDetector =
-          new StreamSphereDetector(densityThreshold, regenerateThreshold);
+          new StreamSphereDetector(densityThreshold, distanceThreshold, regenerateThreshold);
       newDetector.initializeTree(allPossibleOutliers);
       newPossibleOutliers = newDetector.PossibleOutliers;
       ArrayList<Sphere> leaves = new ArrayList<>();
@@ -224,6 +232,8 @@ public class StreamSphereDetector {
       }
       ArrayList<Sphere> meregList = new ArrayList<>();
       Sphere newSphere = SphereDetectionUtil.merge(spheres.get(minI), spheres.get(minJ));
+      boolean flag =
+          SphereDetectionUtil.dist(spheres.get(minI), spheres.get(minJ)) < distanceThreshold;
       spheres.remove(minJ);
       spheres.put(minI, newSphere);
       for (Integer j : spheres.keySet()) {
@@ -256,7 +266,7 @@ public class StreamSphereDetector {
         spheres.remove(key);
       }
       newSphere.sons.addAll(meregList);
-      if (newSphere.get1dDensity() > densityThreshold) {
+      if (newSphere.get1dDensity() > densityThreshold && flag) {
         newSphere.setIsAnomaly(false);
         newSphere.sons.clear();
       } else {
@@ -279,5 +289,9 @@ public class StreamSphereDetector {
 
   public ArrayList<Pair<Long, ArrayList<Double>>> getPossibleOutliers() {
     return PossibleOutliers;
+  }
+
+  public void setDensityThreshold(double densityThreshold) {
+    this.densityThreshold = densityThreshold;
   }
 }

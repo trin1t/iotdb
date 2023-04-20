@@ -26,7 +26,7 @@ import java.util.ArrayList;
 /** Util for SphereDetection */
 public class SphereDetectionUtil {
 
-  public double dist(Sphere s1, Sphere s2) throws Exception {
+  public static double dist(Sphere s1, Sphere s2) throws Exception {
     int dim = s1.getCenteriod().size();
     if (dim != s2.getCenteriod().size()) {
       throw new Exception("Different dimensions.");

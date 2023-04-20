@@ -131,7 +131,7 @@ public class UDTFLOF implements UDTF {
     this.multipleK = parameters.getIntOrDefault("k", 3);
     this.dim = parameters.getChildExpressionsSize();
     this.method = parameters.getStringOrDefault("method", "default");
-    this.window = parameters.getIntOrDefault("window", 5);
+    this.window = parameters.getIntOrDefault("windowsize", 5);
   }
 
   @Override

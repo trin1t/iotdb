@@ -35,7 +35,7 @@ public class UTimeliness {
   private boolean downtime = true;
   int windowSize = 10;
 
-  public ArrayList<Pair<Long, Double>> getValidity(SessionDataSet sds) throws Exception {
+  public ArrayList<Pair<Long, Double>> getTimeliness(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
 

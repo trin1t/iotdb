@@ -28,15 +28,13 @@ import java.util.ArrayList;
 
 /** This function is used to detect range anomaly of time series. */
 public class URange {
-  private double upperBound;
-  private double lowerBound;
+  private double upperBound = 60000;
+  private double lowerBound = -60000;
 
-  public ArrayList<Pair<Long, Double>> getRange(SessionDataSet sds, double ub, double lb)
+  public ArrayList<Pair<Long, Double>> getRange(SessionDataSet sds)
       throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
     beforeStart();
-    upperBound = ub;
-    lowerBound = lb;
     while (sds.hasNext()) {
       RowRecord row = sds.next();
       res.addAll(transform(row));

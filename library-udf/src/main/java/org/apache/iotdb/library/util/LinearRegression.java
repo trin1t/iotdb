@@ -18,7 +18,6 @@
  */
 package org.apache.iotdb.library.util;
 
-import org.apache.iotdb.udf.api.exception.UDFException;
 
 import java.util.Arrays;
 
@@ -61,7 +60,7 @@ public class LinearRegression {
       xybar += (x[i] - xbar) * (y[i] - ybar);
     }
     if (xxbar == 0d) {
-      throw new UDFException("All input x are same.");
+      throw new Exception("All input x are same.");
     }
     beta1 = xybar / xxbar;
     beta0 = ybar - beta1 * xbar;

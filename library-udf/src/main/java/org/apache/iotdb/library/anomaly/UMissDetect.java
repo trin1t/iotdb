@@ -36,10 +36,10 @@ public class UMissDetect {
 
     while (sds.hasNext()) {
       RowRecord row = sds.next();
-      res.addAll(transform(row));
+      transform(row, res);
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
@@ -48,25 +48,20 @@ public class UMissDetect {
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Boolean>> transform(RowRecord row) throws Exception {
-    ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
+  public void transform(RowRecord row, ArrayList<Pair<Long, Boolean>> res) throws Exception {
 
     detector.insert(row.getTimestamp(), row.getFields().get(0).getDoubleV());
     while (detector.hasNext()) {
       res.add(Pair.of(detector.getOutTime(), detector.getOutValue()));
       detector.next();
     }
-    return res;
   }
 
-  public ArrayList<Pair<Long, Boolean>> terminate() throws Exception {
-    ArrayList<Pair<Long, Boolean>> res = new ArrayList<>();
-
+  public void terminate(ArrayList<Pair<Long, Boolean>> res) throws Exception {
     detector.flush();
     while (detector.hasNext()) {
       res.add(Pair.of(detector.getOutTime(), detector.getOutValue()));
       detector.next();
     }
-    return res;
   }
 }

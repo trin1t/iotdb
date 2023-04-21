@@ -58,7 +58,7 @@ public class TimestampRepair {
     original = Util.toDoubleArray(originList);
     n = time.length;
     TimestampInterval trParam = new TimestampInterval(time, original);
-    this.deltaT = trParam.getInterval(intervalMode);
+    this.deltaT = 10;
     this.start0 = trParam.getStart0(startPointMode);
   }
 
@@ -71,6 +71,8 @@ public class TimestampRepair {
 
   public void dpRepair() {
     if (time.length <= 2) {
+      repaired = new long[time.length];
+      repairedValue = new double[time.length];
       noRepair();
       return;
     }

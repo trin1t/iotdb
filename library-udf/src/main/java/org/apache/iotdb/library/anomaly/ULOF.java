@@ -31,9 +31,9 @@ public class ULOF {
   private double threshold;
   private int multipleK = 3;
   private int dim;
-  private String method = "default";
+  private String method = "series";
   private int window = 5;
-  int windowSize = 10;
+  int windowSize = 100;
 
   public ArrayList<Pair<Long, Double>> getLOF(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
@@ -45,16 +45,16 @@ public class ULOF {
       dim = row.getFields().size();
       rows.add(row);
       if (rows.size() == windowSize) {
-        res.addAll(transform(rows));
+        transform(rows, res);
         rows.clear();
       }
     }
     if (rows.size() > 0) {
-      res.addAll(transform(rows));
+      transform(rows, res);
       rows.clear();
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
@@ -140,9 +140,7 @@ public class ULOF {
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-
+  public void transform(ArrayList<RowRecord> rows, ArrayList<Pair<Long, Double>> res) throws Exception {
     if (this.method.equals("default")) {
       int size = rows.size();
       Double[][] knn = new Double[size][dim];
@@ -220,11 +218,8 @@ public class ULOF {
         }
       }
     }
-    return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate() {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-    return res;
+  public void terminate(ArrayList<Pair<Long, Double>> res) {
   }
 }

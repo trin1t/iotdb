@@ -34,10 +34,10 @@ Stream swap require user to provide Q1 and Q3, while global swap does not.
 public class UIQR {
   ArrayList<Double> value = new ArrayList<>();
   ArrayList<Long> timestamp = new ArrayList<>();
-  String compute = "batch";
-  double q1 = 0.0d;
-  double q3 = 0.0d;
-  double iqr = 0.0d;
+  String compute = "stream";
+  double q1 = -20000.0d;
+  double q3 = 20000.0d;
+  double iqr = 40000.0d;
 
   public ArrayList<Pair<Long, Double>> getIQR(SessionDataSet sds) throws Exception {
     ArrayList<Pair<Long, Double>> res = new ArrayList<>();
@@ -45,18 +45,17 @@ public class UIQR {
 
     while (sds.hasNext()) {
       RowRecord row = sds.next();
-      res.addAll(transform(row));
+      transform(row,res);
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+  public void transform(RowRecord row, ArrayList<Pair<Long, Double>> res) throws Exception {
 
     if (compute.equalsIgnoreCase("stream") && q3 > q1) {
       double v = row.getFields().get(0).getDoubleV();
@@ -68,11 +67,9 @@ public class UIQR {
       value.add(v);
       timestamp.add(row.getTimestamp());
     }
-    return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate() throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+  public void terminate(ArrayList<Pair<Long, Double>> res) throws Exception {
 
     if (compute.equalsIgnoreCase("batch")) {
       q1 = Quantiles.quartiles().index(1).compute(value);
@@ -85,6 +82,5 @@ public class UIQR {
         res.add(Pair.of(timestamp.get(i), v));
       }
     }
-    return res;
   }
 }

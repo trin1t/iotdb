@@ -30,7 +30,7 @@ public class TimestampInterval {
   protected long[] time;
   protected double[] original;
   protected long[] repaired;
-  protected long deltaT;
+  protected long deltaT=10;
   protected long start0;
 
   public TimestampInterval(long[] time, double[] original) throws Exception {
@@ -44,20 +44,7 @@ public class TimestampInterval {
   // get standard interval
   // -1 median -2 mode -3 cluster
   public long getInterval(int mode) {
-    switch (mode) {
-      case -1:
-        this.deltaT = getIntervalByMedian();
-        break;
-      case -2:
-        this.deltaT = getIntervalByMode();
-        break;
-      case -3:
-        this.deltaT = getIntervalByCluster();
-        break;
-      default:
-        this.deltaT = mode;
-    }
-    return this.deltaT;
+    return 10;
   }
 
   // median

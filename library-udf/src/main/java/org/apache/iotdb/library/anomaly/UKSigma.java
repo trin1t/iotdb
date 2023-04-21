@@ -45,18 +45,17 @@ public class UKSigma {
 
     while (sds.hasNext()) {
       RowRecord row = sds.next();
-      res.addAll(transform(row));
+      transform(row,res);
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(RowRecord row) throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+  public void transform(RowRecord row, ArrayList<Pair<Long, Double>> res) throws Exception {
 
     double value = row.getFields().get(0).getDoubleV();
     long timestamp = row.getTimestamp();
@@ -96,11 +95,10 @@ public class UKSigma {
         }
       }
     }
-    return res;
+
   }
 
-  public ArrayList<Pair<Long, Double>> terminate() throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
+  public void terminate(ArrayList<Pair<Long, Double>> res) throws Exception {
 
     if (!v.isFull() && v.getSize() > 1) {
       double stddev = Math.sqrt(this.var * v.getSize() / (v.getSize() - 1));
@@ -112,6 +110,5 @@ public class UKSigma {
         }
       }
     }
-    return res;
   }
 }

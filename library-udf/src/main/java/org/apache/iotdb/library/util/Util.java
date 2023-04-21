@@ -18,9 +18,6 @@
  */
 package org.apache.iotdb.library.util;
 
-import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.udf.api.access.Row;
-import org.apache.iotdb.udf.api.collector.PointCollector;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.eclipse.collections.api.tuple.primitive.LongIntPair;
@@ -31,109 +28,6 @@ import java.util.ArrayList;
 
 /** This class offers functions of getting and putting values from iotdb interface. */
 public class Util {
-
-  /**
-   * Get value from specific column from Row, and cast to double. Make sure never get null from Row.
-   *
-   * @param row data row
-   * @param index the column index
-   * @return value of specific column from Row
-   * @throws NoNumberException when getting a no number datatype
-   */
-  public static double getValueAsDouble(Row row, int index) throws Exception {
-    double ans = 0;
-    try {
-      switch (row.getDataType(index)) {
-        case INT32:
-          ans = row.getInt(index);
-          break;
-        case INT64:
-          ans = row.getLong(index);
-          break;
-        case FLOAT:
-          ans = row.getFloat(index);
-          break;
-        case DOUBLE:
-          ans = row.getDouble(index);
-          break;
-        default:
-          throw new NoNumberException();
-      }
-    } catch (IOException e) {
-      throw new Exception("Fail to get data type in row " + row.getTime(), e);
-    }
-    return ans;
-  }
-
-  /**
-   * Get value from 0th column from Row, and cast to double. Make sure never get null from Row.
-   *
-   * @param row data row
-   * @return value from 0th column from Row
-   * @throws NoNumberException when getting a no number datatype
-   */
-  public static double getValueAsDouble(Row row) throws Exception {
-    return getValueAsDouble(row, 0);
-  }
-
-  /**
-   * Get value from 0th column from Row, and cast to Object.
-   *
-   * @param row data row
-   * @return value from 0th column from Row
-   */
-  public static Object getValueAsObject(Row row) throws IOException {
-    Object ans = 0;
-    switch (row.getDataType(0)) {
-      case INT32:
-        ans = row.getInt(0);
-        break;
-      case INT64:
-        ans = row.getLong(0);
-        break;
-      case FLOAT:
-        ans = row.getFloat(0);
-        break;
-      case DOUBLE:
-        ans = row.getDouble(0);
-        break;
-      case BOOLEAN:
-        ans = row.getBoolean(0);
-        break;
-      case TEXT:
-        ans = row.getString(0);
-        break;
-    }
-    return ans;
-  }
-
-  /**
-   * Add new data point to PointCollector
-   *
-   * @param pc PointCollector
-   * @param type datatype
-   * @param t timestamp
-   * @param o value in Object type
-   */
-  public static void putValue(PointCollector pc, TSDataType type, long t, Object o)
-      throws Exception {
-    switch (type) {
-      case INT32:
-        pc.putInt(t, (Integer) o);
-        break;
-      case INT64:
-        pc.putLong(t, (Long) o);
-        break;
-      case FLOAT:
-        pc.putFloat(t, (Float) o);
-        break;
-      case DOUBLE:
-        pc.putDouble(t, (Double) o);
-        break;
-      case BOOLEAN:
-        pc.putBoolean(t, (Boolean) o);
-    }
-  }
 
   /**
    * cast {@code ArrayList<Double>} to {@code double[]}

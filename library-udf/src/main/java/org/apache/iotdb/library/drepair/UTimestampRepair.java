@@ -29,7 +29,7 @@ import java.util.ArrayList;
 
 /** This function is used for timestamp repair. */
 public class UTimestampRepair {
-  int intervalMode;
+  int intervalMode = -1;
   int windowSize = 10;
 
   public ArrayList<Pair<Long, Double>> getTimestampRepair(SessionDataSet sds) throws Exception {
@@ -42,25 +42,23 @@ public class UTimestampRepair {
       RowRecord row = sds.next();
       rows.add(row);
       if (rows.size() == windowSize) {
-        res.addAll(transform(rows));
+        transform(rows, res);
         rows.clear();
       }
     }
     if (rows.size() > 0) {
-      res.addAll(transform(rows));
+      transform(rows,res);
       rows.clear();
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-
+  public void transform(ArrayList<RowRecord> rows, ArrayList<Pair<Long, Double>> res) throws Exception {
     TimestampRepair ts = new TimestampRepair(rows, intervalMode, 2);
     ts.dpRepair();
     long[] timestamp = ts.getRepaired();
@@ -68,11 +66,8 @@ public class UTimestampRepair {
     for (int i = 0; i < timestamp.length; i++) {
       res.add(Pair.of(timestamp[i], value[i]));
     }
-    return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate() {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-    return res;
+  public void terminate(ArrayList<Pair<Long, Double>> res) {
   }
 }

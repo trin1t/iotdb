@@ -31,7 +31,7 @@ import java.util.ArrayList;
 
 /** This function is used to repair the value of the time series. */
 public class UValueRepair {
-  String method;
+  String method="screen";
   double minSpeed;
   double maxSpeed;
   double center;
@@ -48,25 +48,23 @@ public class UValueRepair {
       RowRecord row = sds.next();
       rows.add(row);
       if (rows.size() == windowSize) {
-        res.addAll(transform(rows));
+        transform(rows, res);
         rows.clear();
       }
     }
     if (rows.size() > 0) {
-      res.addAll(transform(rows));
+      transform(rows, res);
       rows.clear();
     }
 
-    res.addAll(terminate());
+    terminate(res);
 
     return res;
   }
 
   public void beforeStart() {}
 
-  public ArrayList<Pair<Long, Double>> transform(ArrayList<RowRecord> rows) throws Exception {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-
+  public void transform(ArrayList<RowRecord> rows, ArrayList<Pair<Long, Double>> res) throws Exception {
     ValueRepair vr;
     if ("screen".equalsIgnoreCase(method)) {
       Screen screen = new Screen(rows);
@@ -93,11 +91,9 @@ public class UValueRepair {
     for (int i = 0; i < time.length; i++) {
       res.add(Pair.of(time[i], repaired[i]));
     }
-    return res;
   }
 
-  public ArrayList<Pair<Long, Double>> terminate() {
-    ArrayList<Pair<Long, Double>> res = new ArrayList<>();
-    return res;
+  public void terminate(ArrayList<Pair<Long, Double>> res) {
+
   }
 }

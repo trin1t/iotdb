@@ -61,6 +61,8 @@ public class TimestampRepair {
   }
 
   private void noRepair() {
+    repaired = new long[time.length];
+    repairedValue = new double[time.length];
     for (int i = 0; i < time.length; i++) {
       repaired[i] = time[i];
       repairedValue[i] = original[i];

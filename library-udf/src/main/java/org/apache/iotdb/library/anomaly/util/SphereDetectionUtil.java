@@ -73,12 +73,16 @@ public class SphereDetectionUtil {
         Sphere res = new Sphere(c1, r1, s1.getPointNum() + s2.getPointNum());
         res.setIsAnomaly(s1.isAnomaly());
         ArrayDeque<Long> points = s1.getPoints();
-        for (Long p : points) {
-          res.addPoint(p);
+        if(points != null){
+          for (Long p : points) {
+            res.addPoint(p);
+          }
         }
         points = s2.getPoints();
-        for (Long p : points) {
-          res.addPoint(p);
+        if(points != null){
+          for (Long p : points) {
+            res.addPoint(p);
+          }
         }
         res.sons.add(s1);
         res.sons.add(s2);
@@ -92,12 +96,16 @@ public class SphereDetectionUtil {
       double r3 = centd + r1 + r2;
       Sphere res = new Sphere(c3, r3, s1.getPointNum() + s2.getPointNum());
       ArrayDeque<Long> points = s1.getPoints();
-      for (Long p : points) {
-        res.addPoint(p);
+      if(points != null){
+        for (Long p : points) {
+          res.addPoint(p);
+        }
       }
       points = s2.getPoints();
-      for (Long p : points) {
-        res.addPoint(p);
+      if(points != null){
+        for (Long p : points) {
+          res.addPoint(p);
+        }
       }
       res.sons.add(s1);
       res.sons.add(s2);

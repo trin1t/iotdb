@@ -153,7 +153,16 @@ public class LongCircularQueue {
   }
 
   public long[] getData() {
-    return data;
+    long[] d = new long[size];
+    int i = head;
+    int cnt = 0;
+    while (cnt < size) {
+      d[cnt] = data[i];
+      i++;
+      i = i % size;
+      cnt++;
+    }
+    return d;
   }
 
   public void set(int index, long value) {

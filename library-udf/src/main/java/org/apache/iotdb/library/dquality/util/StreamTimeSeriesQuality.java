@@ -75,56 +75,57 @@ public class StreamTimeSeriesQuality {
   public void updateStreamTimeSeriesQuality(Row row) throws Exception {
     double v = Util.getValueAsDouble(row);
     long t = row.getTime();
-    boolean specialValue = false;
-    if (Double.isFinite(v)) {
-      originList.push(v);
-    } else { // processing NAN，INF
-      specialCnt++;
-      specialValue = true;
-    }
     if (originList.isFull()) {
       timeList.pop();
       intervalList.pop();
       originList.pop();
     }
-    if (specialValue) {
-      originList.push(Double.NaN);
-    } else {
+    if (Double.isFinite(v)) {
       originList.push(v);
+    } else { // processing NAN，INF
+      specialCnt++;
+      originList.push(Double.NaN);
     }
-    intervalList.push(t - timeList.getTail());
-    timeList.push(t);
-    // clear data before shutdown period
-    // if shutdown occurs in the first window, please change window size
-    if (intervalList.getTail() > base * shutdownFactor
-        && !currentFunction.equalsIgnoreCase("validity")) {
-      while (!intervalList.isEmpty()) {
-        originList.pop();
-        timeList.pop();
-        intervalList.pop();
-        if (timeErrorType.pop() == 1) {
-          latencyNum--;
-        }
-      }
-      slidingPoints = 0;
-    }
-    if (originList.isFull()) {
-      if (slidingPoints == slidingStep - 1 || cnt == 0) {
-        cnt++;
-        slidingPoints++;
-        missingNum -= missings.pop();
-        if (!currentFunction.equalsIgnoreCase("validity")) {
-          updateTimestampQuality();
-        } else {
-          updateValidityQuality();
+
+    if (!timeList.isEmpty()) {
+      intervalList.push(t - timeList.getTail());
+      timeList.push(t);
+      // clear data before shutdown period
+      // if shutdown occurs in the first window, please change window size
+      if (intervalList.getTail() > base * shutdownFactor
+          && !currentFunction.equalsIgnoreCase("validity")) {
+        while (!intervalList.isEmpty()) {
+          originList.pop();
+          timeList.pop();
+          intervalList.pop();
+          if (timeErrorType.pop() == 1) {
+            latencyNum--;
+          }
         }
         slidingPoints = 0;
-      } else {
-        slidingPoints++;
-        if (!currentFunction.equalsIgnoreCase("validity") && timeErrorType.pop() == 1) {
-          latencyNum--;
+      }
+      if (originList.isFull()) {
+        if (slidingPoints == slidingStep - 1 || cnt == 0) {
+          cnt++;
+          slidingPoints++;
+          if (!missings.isEmpty()) {
+            missingNum -= missings.pop();
+          }
+          if (!currentFunction.equalsIgnoreCase("validity")) {
+            updateTimestampQuality();
+          } else {
+            updateValidityQuality();
+          }
+          slidingPoints = 0;
+        } else {
+          slidingPoints++;
+          if (!currentFunction.equalsIgnoreCase("validity") && timeErrorType.pop() == 1) {
+            latencyNum--;
+          }
         }
       }
+    } else {
+      timeList.push(t);
     }
   }
 
@@ -172,8 +173,7 @@ public class StreamTimeSeriesQuality {
       timestampError.add(delta);
     }
     double med =
-        new Median()
-            .evaluate(timestampError.stream().mapToDouble(Double::valueOf).toArray()); // todo
+        new Median().evaluate(timestampError.stream().mapToDouble(Double::valueOf).toArray());
     expectedFirstTime = initTime - Math.round(med);
   }
 
